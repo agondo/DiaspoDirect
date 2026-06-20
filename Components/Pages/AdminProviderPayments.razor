@@ -160,7 +160,18 @@
                                         <div>@(r.RecipientName ?? "—")</div>
                                         <div class="text-muted small">@r.CountryName</div>
                                     </td>
-                                    <td class="small text-muted">@(r.ProviderName ?? "—")</td>
+                                    <td>
+                                        @if (r.ProviderName is not null)
+                                        {
+                                            <div class="small fw-semibold">@r.ProviderName</div>
+                                            <button class="btn btn-link btn-sm p-0 text-muted" style="font-size:0.72rem"
+                                                    @onclick="() => OpenAssign(r)">Change</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary btn-sm" @onclick="() => OpenAssign(r)">Assign</button>
+                                        }
+                                    </td>
                                     <td class="text-end small">@r.AmountCFA.ToString("N0") CFA</td>
                                     <td class="text-end small fw-semibold">$@r.AmountUsd.ToString("N2")</td>
                                     <td class="text-center">
@@ -238,6 +249,59 @@
     </div>
 }
 
+<!-- Assign Provider slide panel -->
+@if (assignRow is not null)
+{
+    <div class="modal-backdrop-custom" @onclick="CloseAssign"></div>
+    <div class="modal-panel-custom">
+        <div class="modal-panel-header">
+            <h5 class="mb-0">Assign Provider</h5>
+            <button class="btn-close" @onclick="CloseAssign"></button>
+        </div>
+        <div class="modal-panel-body">
+            <div class="mb-3 p-3 bg-light rounded">
+                <div class="small text-muted mb-1">Prescription</div>
+                <div class="fw-semibold">@assignRow.PrescriptionFileName</div>
+                <div class="small text-muted mt-2 mb-1">Recipient</div>
+                <div>@(assignRow.RecipientName ?? "—") — @assignRow.CountryName</div>
+            </div>
+
+            @if (assignFormError is not null)
+            {
+                <div class="alert alert-danger py-2 small">@assignFormError</div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Provider <span class="text-danger">*</span></label>
+                <select class="form-select" @bind="assignProviderId">
+                    <option value="">— Select a provider —</option>
+                    @foreach (var p in providers)
+                    {
+                        <option value="@p.ProviderId">@p.ProviderName (@p.ProviderType)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Amount CFA</label>
+                <input class="form-control" type="number" @bind="assignAmountCFA" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Payment Method <span class="text-muted fw-normal">(optional)</span></label>
+                <input class="form-control" placeholder="e.g. Mobile Money, Bank Transfer" @bind="assignPaymentMethod" />
+            </div>
+        </div>
+        <div class="modal-panel-footer">
+            <button class="btn btn-outline-secondary" @onclick="CloseAssign">Cancel</button>
+            <button class="btn btn-primary" @onclick="SaveAssignProvider" disabled="@isSaving">
+                @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                Save
+            </button>
+        </div>
+    </div>
+}
+
 <style>
     .modal-backdrop-custom {
         position: fixed; inset: 0;
@@ -271,14 +335,24 @@
 
 @code {
     private List<PaymentRow> rows = [];
+    private List<Provider> providers = [];
     private string filter = "pending";
     private string? successMessage;
     private string? errorMessage;
     private PaymentRow? markPaidRow;
     private string? markPaidReference;
+    private PaymentRow? assignRow;
+    private Guid assignProviderId;
+    private decimal assignAmountCFA;
+    private string? assignPaymentMethod;
+    private string? assignFormError;
     private bool isSaving;
 
-    protected override async Task OnInitializedAsync() => await LoadRows();
+    protected override async Task OnInitializedAsync()
+    {
+        providers = await Db.Providers.Where(p => p.IsActive).OrderBy(p => p.ProviderName).ToListAsync();
+        await LoadRows();
+    }
 
     private async Task LoadRows()
     {
@@ -294,22 +368,28 @@
             .Where(pp => prescriptionIds.Contains(pp.PrescriptionId))
             .Include(pp => pp.Provider)
             .GroupBy(pp => pp.PrescriptionId)
-            .ToDictionaryAsync(g => g.Key, g => g.First().Provider.ProviderName);
+            .ToDictionaryAsync(g => g.Key, g => (g.First().ProviderPaymentId, g.First().Provider.ProviderName));
 
-        rows = payments.Select(p => new PaymentRow(
-            p.Id,
-            p.Prescription.PrescriptionFileName,
-            p.Prescription.RecipientFirstLastName,
-            p.Prescription.CountryName,
-            providerMap.GetValueOrDefault(p.PrescriptionId),
-            p.Prescription.AmountCFA,
-            p.AmountUsd,
-            p.Status,
-            p.IsPaidToProvider,
-            p.PaidToProviderAt,
-            p.ProviderPaymentReference,
-            p.CreatedAt
-        )).ToList();
+        rows = payments.Select(p =>
+        {
+            var prov = providerMap.GetValueOrDefault(p.PrescriptionId);
+            return new PaymentRow(
+                p.Id,
+                p.PrescriptionId,
+                p.Prescription.PrescriptionFileName,
+                p.Prescription.RecipientFirstLastName,
+                p.Prescription.CountryName,
+                prov.ProviderPaymentId == Guid.Empty ? null : prov.ProviderPaymentId,
+                prov.ProviderName,
+                p.Prescription.AmountCFA,
+                p.AmountUsd,
+                p.Status,
+                p.IsPaidToProvider,
+                p.PaidToProviderAt,
+                p.ProviderPaymentReference,
+                p.CreatedAt
+            );
+        }).ToList();
     }
 
     private void OpenMarkPaid(PaymentRow row)
@@ -319,6 +399,58 @@
     }
 
     private void ClosePanel() => markPaidRow = null;
+
+    private void OpenAssign(PaymentRow row)
+    {
+        assignRow = row;
+        assignProviderId = Guid.Empty;
+        assignAmountCFA = row.AmountCFA;
+        assignPaymentMethod = null;
+        assignFormError = null;
+    }
+
+    private void CloseAssign() => assignRow = null;
+
+    private async Task SaveAssignProvider()
+    {
+        if (assignRow is null) return;
+        if (assignProviderId == Guid.Empty) { assignFormError = "Please select a provider."; return; }
+
+        isSaving = true;
+        assignFormError = null;
+        try
+        {
+            // Remove existing assignment if present
+            if (assignRow.ProviderPaymentId.HasValue)
+            {
+                var existing = await Db.ProviderPayments.FindAsync(assignRow.ProviderPaymentId.Value);
+                if (existing is not null) Db.ProviderPayments.Remove(existing);
+            }
+
+            Db.ProviderPayments.Add(new ProviderPayment
+            {
+                ProviderId     = assignProviderId,
+                PrescriptionId = assignRow.PrescriptionId,
+                AmountCFA      = assignAmountCFA,
+                PaymentMethod  = string.IsNullOrWhiteSpace(assignPaymentMethod) ? null : assignPaymentMethod.Trim(),
+                Status         = "Pending"
+            });
+
+            await Db.SaveChangesAsync();
+            successMessage = "Provider assigned successfully.";
+            errorMessage   = null;
+            assignRow      = null;
+            await LoadRows();
+        }
+        catch (Exception ex)
+        {
+            assignFormError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
 
     private async Task ConfirmMarkPaid()
     {
@@ -352,9 +484,11 @@
 
     private sealed record PaymentRow(
         Guid Id,
+        Guid PrescriptionId,
         string PrescriptionFileName,
         string? RecipientName,
         string CountryName,
+        Guid? ProviderPaymentId,
         string? ProviderName,
         decimal AmountCFA,
         decimal AmountUsd,
