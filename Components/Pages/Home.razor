@@ -1,0 +1,407 @@
+@page "/"
+@layout PublicLayout
+@using DiaspoDirect.Components.Layout
+@using Microsoft.AspNetCore.Identity.UI.Services
+@inject IEmailSender EmailSender
+
+<PageTitle>DiaspoDirect — Support Your Loved Ones Back Home</PageTitle>
+
+<div class="landing-page">
+
+    <!-- ── Hero ─────────────────────────────────────────────────────── -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="hero-badge">Trusted by the Diaspora Community</div>
+            <h1>Support Your Loved Ones Back Home with DiaspoDirect</h1>
+            <p>
+                DiaspoDirect helps members of the diaspora pay for prescriptions,
+                pharmacy services, and other essential needs for family members
+                in Côte d'Ivoire — quickly, securely, and with full transparency.
+            </p>
+            <div class="hero-actions">
+                <a href="/Account/Register" class="btn-primary-cta">Upload a Prescription</a>
+                <a href="#how-it-works" class="btn-ghost-cta">See how it works ↓</a>
+            </div>
+
+            <!-- Trust indicators -->
+            <div class="trust-indicators">
+                <span>✓ Secure Payments via Stripe</span>
+                <span>✓ Trusted Pharmacy Partners</span>
+                <span>✓ Transparent Pricing</span>
+                <span>✓ Serving Côte d'Ivoire</span>
+            </div>
+        </div>
+
+        <!-- Hero story card -->
+        <div class="hero-visual">
+            <div class="story-card">
+                <div class="story-card-header">
+                    <span class="story-icon">💊</span>
+                    <span class="story-title">Prescription Request</span>
+                    <span class="story-tag">Sandbox</span>
+                </div>
+                <div class="story-row">
+                    <span class="story-label">Recipient</span>
+                    <span class="story-value">Kouassi Jean</span>
+                </div>
+                <div class="story-row">
+                    <span class="story-label">Pharmacy</span>
+                    <span class="story-value">Pharmacie Centrale</span>
+                </div>
+                <div class="story-row">
+                    <span class="story-label">Amount</span>
+                    <span class="story-value story-amount">27,000 CFA</span>
+                </div>
+                <div class="story-row">
+                    <span class="story-label">Service fee</span>
+                    <span class="story-value">+ $4.99</span>
+                </div>
+                <div class="story-status">
+                    <span class="status-dot"></span>
+                    ✓ Paid Successfully
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Who We Are ────────────────────────────────────────────────── -->
+    <section class="who-section" id="who-we-are">
+        <div class="who-inner">
+            <div class="who-text">
+                <div class="section-tag">Who we are</div>
+                <h2>About DiaspoDirect</h2>
+                <p>
+                    DiaspoDirect is a service of <strong>Flaubert Group LLC</strong>, a Texas-based IT Consulting
+                    and Fintech firm dedicated to building innovative technology solutions that connect people,
+                    businesses, and communities across borders.
+                </p>
+                <p>
+                    At Flaubert Group LLC, we combine expertise in technology, digital transformation, and financial
+                    services to develop secure and reliable platforms that solve real-world challenges. DiaspoDirect
+                    was created to address one of those challenges: helping members of the African diaspora provide
+                    timely support to their loved ones back home.
+                </p>
+                <p>
+                    Our mission is to bridge the distance between families by offering a secure, transparent, and
+                    convenient platform for paying essential services on behalf of relatives in Africa. We understand
+                    that when a loved one needs medication or other critical services, time and distance should never
+                    be barriers to receiving support.
+                </p>
+                <p>
+                    DiaspoDirect enables family members living abroad to directly pay for prescriptions and pharmacy
+                    services for relatives in Côte d'Ivoire, ensuring that assistance reaches those who need it
+                    quickly and securely. By partnering with trusted local providers and leveraging modern payment
+                    technologies, we help families support one another with confidence and peace of mind.
+                </p>
+                <p>
+                    As part of Flaubert Group LLC's commitment to innovation and community impact, DiaspoDirect is
+                    continuously expanding its services. While our initial focus is prescription and pharmacy
+                    payments, future offerings will include education expenses, utility bill payments, healthcare
+                    services, and other essential family needs across Africa.
+                </p>
+                <p>
+                    We believe that caring for family should not be limited by borders. Our goal is to empower
+                    diaspora communities with trusted digital tools that make supporting loved ones simple, secure,
+                    and accessible.
+                </p>
+                <div class="who-tagline">DiaspoDirect — A Service of Flaubert Group LLC, an IT Consulting and Fintech Firm. Connecting Families. Supporting Communities.</div>
+            </div>
+            <div class="who-pillars">
+                <div class="pillar">
+                    <div class="pillar-icon">🏛️</div>
+                    <h4>Texas-Based LLC</h4>
+                    <p>Registered and headquartered in Texas, operating with full U.S. business standards, accountability, and compliance.</p>
+                </div>
+                <div class="pillar">
+                    <div class="pillar-icon">💡</div>
+                    <h4>IT & Fintech Expertise</h4>
+                    <p>Deep expertise in technology, digital transformation, and financial services powering every platform we build.</p>
+                </div>
+                <div class="pillar">
+                    <div class="pillar-icon">🔒</div>
+                    <h4>Secure by Design</h4>
+                    <p>Enterprise-grade security standards — every transaction encrypted, tracked, and auditable end to end.</p>
+                </div>
+                <div class="pillar">
+                    <div class="pillar-icon">🌍</div>
+                    <h4>Cross-Border Impact</h4>
+                    <p>Connecting people, businesses, and communities across borders through trusted digital solutions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── How It Works ──────────────────────────────────────────────── -->
+    <section class="how-section" id="how-it-works">
+        <div class="section-header">
+            <div class="section-tag">Simple process</div>
+            <h2>How It Works</h2>
+            <p class="section-subtitle">Four steps and your family is taken care of — from anywhere in the world.</p>
+        </div>
+
+        <div class="steps-row">
+            <div class="step-card">
+                <div class="step-icon-wrap">📄</div>
+                <div class="step-num">1</div>
+                <h4>Upload Prescription</h4>
+                <p>The recipient uploads the prescription and their contact details through our secure portal.</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-card">
+                <div class="step-icon-wrap">📬</div>
+                <div class="step-num">2</div>
+                <h4>Diaspora Member Receives Request</h4>
+                <p>You see the request with the confirmed amount and pharmacy details — no guessing.</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-card">
+                <div class="step-icon-wrap">💳</div>
+                <div class="step-num">3</div>
+                <h4>Secure Payment</h4>
+                <p>Pay online in seconds using any card — processed securely through Stripe.</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-card">
+                <div class="step-icon-wrap">🏥</div>
+                <div class="step-num">4</div>
+                <h4>Pharmacy Gets Paid</h4>
+                <p>DiaspoDirect coordinates with the pharmacy so your family can collect their medication.</p>
+            </div>
+        </div>
+
+        <div class="steps-cta">
+            <a href="/Account/Register" class="btn-primary-cta">Start a Request</a>
+        </div>
+    </section>
+
+    <!-- ── Services ──────────────────────────────────────────────────── -->
+    <section class="services-section" id="services">
+        <div class="section-header">
+            <div class="section-tag">What we offer</div>
+            <h2>Our Services</h2>
+            <p class="section-subtitle">Today and tomorrow — one platform for everything your family needs.</p>
+        </div>
+
+        <div class="services-grid">
+            <!-- Current -->
+            <div class="services-col">
+                <div class="services-col-label current">Available Now</div>
+                <div class="service-card featured">
+                    <div class="service-icon">💊</div>
+                    <h3>Prescription Payments</h3>
+                    <p>Upload a prescription, get the amount confirmed by a pharmacy partner, and pay securely online from anywhere.</p>
+                    <a href="/Account/Register" class="service-link">Upload a prescription →</a>
+                </div>
+            </div>
+
+            <!-- Coming soon -->
+            <div class="services-col">
+                <div class="services-col-label soon">Coming Soon</div>
+                <div class="coming-soon-cards">
+                    <div class="service-card muted">
+                        <div class="service-icon">🎓</div>
+                        <h3>School Fees</h3>
+                        <p>Help families pay tuition, school supplies, and registration fees directly.</p>
+                    </div>
+                    <div class="service-card muted">
+                        <div class="service-icon">⚡</div>
+                        <h3>Utility Bills</h3>
+                        <p>Cover electricity, water, and essential bills — no wire transfers needed.</p>
+                    </div>
+                    <div class="service-card muted">
+                        <div class="service-icon">🏥</div>
+                        <h3>Medical Services</h3>
+                        <p>Extend support beyond prescriptions to clinic visits and lab work.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Contact ─────────────────────────────────────────────────────── -->
+    <section class="contact-section" id="contact">
+        <div class="section-header">
+            <div class="section-tag">Get in touch</div>
+            <h2>Contact Us</h2>
+            <p class="section-subtitle">Have questions? We'd love to hear from you. Reach out to the DiaspoDirect team.</p>
+        </div>
+
+        <div class="contact-grid">
+            <div class="contact-info">
+                <div class="contact-item">
+                    <div class="contact-icon">📧</div>
+                    <div>
+                        <h4>Email</h4>
+                        <p>info&#64;diaspodirect.com</p>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">🏢</div>
+                    <div>
+                        <h4>Company</h4>
+                        <p>Flaubert Group LLC<br />Texas, United States</p>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">🌍</div>
+                    <div>
+                        <h4>Service Area</h4>
+                        <p>Côte d'Ivoire — expanding across Africa</p>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">⏱️</div>
+                    <div>
+                        <h4>Response Time</h4>
+                        <p>We respond within 1–2 business days.</p>
+                    </div>
+                </div>
+            </div>
+
+            <EditForm Model="contactModel" OnValidSubmit="HandleContactSubmit" FormName="contact" method="post" class="contact-form">
+                <DataAnnotationsValidator />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <InputText @bind-Value="contactModel.FirstName" placeholder="Jean" class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <InputText @bind-Value="contactModel.LastName" placeholder="Kouassi" class="form-control" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <InputText @bind-Value="contactModel.Email" type="email" placeholder="you@example.com" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Subject</label>
+                    <InputText @bind-Value="contactModel.Subject" placeholder="Question about prescription payments" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <InputTextArea @bind-Value="contactModel.Message" rows="5" placeholder="Tell us how we can help…" class="form-control" />
+                </div>
+                @if (contactSent)
+                {
+                    <div class="alert alert-success">Thanks! We'll get back to you within 1–2 business days.</div>
+                }
+                @if (contactError)
+                {
+                    <div class="alert alert-danger">Something went wrong. Please try again or email us directly.</div>
+                }
+                <button type="submit" class="btn-primary-cta contact-submit" disabled="@contactSubmitting">
+                    @(contactSubmitting ? "Sending…" : "Send Message")
+                </button>
+            </EditForm>
+        </div>
+    </section>
+
+    <!-- ── Why DiaspoDirect ───────────────────────────────────────────── -->
+    <section class="why-section">
+        <div class="section-header">
+            <div class="section-tag">Why DiaspoDirect</div>
+            <h2>Built for Trust</h2>
+            <p class="section-subtitle">Trust is critical when people are sending money for healthcare. Here's why families rely on us.</p>
+        </div>
+        <div class="why-grid">
+            <div class="why-item">
+                <div class="why-icon">🔒</div>
+                <h4>Bank-Grade Security</h4>
+                <p>All payments processed through Stripe with full encryption and fraud protection.</p>
+            </div>
+            <div class="why-item">
+                <div class="why-icon">🤝</div>
+                <h4>Trusted Pharmacy Partners</h4>
+                <p>We work directly with verified pharmacies — your family collects, no middlemen.</p>
+            </div>
+            <div class="why-item">
+                <div class="why-icon">📊</div>
+                <h4>Transparent Pricing</h4>
+                <p>See the exact CFA amount and small service fee before you pay — no surprises.</p>
+            </div>
+            <div class="why-item">
+                <div class="why-icon">📱</div>
+                <h4>Works on Any Device</h4>
+                <p>Pay from your phone, tablet, or computer anywhere in the world — no app needed.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Bottom CTA ─────────────────────────────────────────────────── -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2>Ready to help your loved ones?</h2>
+            <p>Join the diaspora community using DiaspoDirect. It only takes a minute to get started.</p>
+            <a href="/Account/Register" class="btn-primary-cta large">Upload a Prescription</a>
+            <div class="cta-trust">
+                <span>✓ Free to register</span>
+                <span>✓ No subscription</span>
+                <span>✓ Pay only when you send</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Footer ─────────────────────────────────────────────────────── -->
+    <footer class="landing-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <strong>DiaspoDirect</strong>
+                <span>Connecting the diaspora with their families.</span>
+            </div>
+            <div class="footer-links">
+                <a href="#how-it-works">How It Works</a>
+                <a href="#services">Services</a>
+                <a href="/Account/Login">Sign in</a>
+                <a href="/Account/Register">Register</a>
+            </div>
+        </div>
+        <div class="footer-copy">© 2026 DiaspoDirect. All rights reserved.</div>
+    </footer>
+
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private ContactModel contactModel { get; set; } = new();
+    private bool contactSent;
+    private bool contactError;
+    private bool contactSubmitting;
+
+    private async Task HandleContactSubmit()
+    {
+        contactSubmitting = true;
+        contactSent = false;
+        contactError = false;
+
+        try
+        {
+            var body =
+                $"<p><strong>From:</strong> {contactModel.FirstName} {contactModel.LastName} ({contactModel.Email})</p>" +
+                $"<p><strong>Subject:</strong> {contactModel.Subject}</p>" +
+                "<hr/>" +
+                $"<p>{contactModel.Message.Replace("\n", "<br/>")}</p>";
+
+            await EmailSender.SendEmailAsync("diapodirect@flaubertgroup.com", $"[DiaspoDirect Contact] {contactModel.Subject}", body);
+            contactSent = true;
+            contactModel = new();
+        }
+        catch
+        {
+            contactError = true;
+        }
+        finally
+        {
+            contactSubmitting = false;
+        }
+    }
+
+    private class ContactModel
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Subject { get; set; } = "";
+        public string Message { get; set; } = "";
+    }
+}

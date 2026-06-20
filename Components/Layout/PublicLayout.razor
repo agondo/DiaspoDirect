@@ -1,0 +1,30 @@
+@inherits LayoutComponentBase
+
+<div class="public-layout">
+    <header class="public-nav">
+        <div class="public-nav-inner">
+            <a href="/" class="nav-brand">DiaspoDirect</a>
+            <nav class="nav-links">
+                <a href="/#who-we-are">Who We Are</a>
+                <a href="/#how-it-works">How It Works</a>
+                <a href="/#services">Services</a>
+                <a href="/#contact">Contact</a>
+                <a href="/Account/Login" class="nav-login">Login</a>
+                <a href="/Account/Register" class="nav-register">Register</a>
+            </nav>
+            <button class="nav-burger" onclick="this.closest('.public-layout').querySelector('.nav-links').classList.toggle('open')">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+
+    <main class="public-main">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

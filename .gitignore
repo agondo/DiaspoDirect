@@ -1,0 +1,29 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+## Secrets — never commit these
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
+## Local service dependency files
+Properties/serviceDependencies.local.json
+
+## Uploads / generated files
+wwwroot/uploads/
+wwwroot/PrescriptionsDir/
+_dummy.pdf
+
+## Local test / dev scripts (may contain credentials)
+*.py
+
+## Claude Code local settings
+.claude/
+
+## OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,315 @@
+@page "/admin/exchange-rates"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using DiaspoDirect.Data
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+
+<PageTitle>Exchange Rates</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Exchange Rates</h2>
+            <p class="text-muted mb-0">@rates.Count @(rates.Count == 1 ? "rate" : "rates") on record</p>
+        </div>
+        <button class="btn btn-primary" @onclick="() => OpenForm(null)">+ New Rate</button>
+    </div>
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @{
+        var latest = rates.FirstOrDefault();
+    }
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#1b6ec2" viewBox="0 0 16 16">
+                            <path d="M1 2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm1 3v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5H2zm3 1h2v1H5V6zm0 2h2v1H5V8zm0 2h2v1H5v-1zm3-4h3v1H8V6zm0 2h3v1H8V8zm0 2h3v1H8v-1z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-muted small mb-0">Total Rates</p>
+                        <h3 class="mb-0 fw-bold">@rates.Count</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#198754" viewBox="0 0 16 16">
+                            <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.051zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-muted small mb-0">Latest Base Rate</p>
+                        <h3 class="mb-0 fw-bold">@(latest is not null ? latest.BaseRate.ToString("N2") : "—")</h3>
+                        @if (latest is not null)
+                        {
+                            <span class="text-muted small">@latest.RateDate.ToString("MMM dd, yyyy")</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#ffc107" viewBox="0 0 16 16">
+                            <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.051zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-muted small mb-0">Latest DiaspoDirect Rate</p>
+                        <h3 class="mb-0 fw-bold">@(latest is not null ? latest.DiaspoDirectRate.ToString("N2") : "—")</h3>
+                        @if (latest is not null)
+                        {
+                            <span class="text-muted small">@latest.RateDate.ToString("MMM dd, yyyy")</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#0dcaf0" viewBox="0 0 16 16">
+                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-muted small mb-0">Latest Spread</p>
+                        <h3 class="mb-0 fw-bold">
+                            @if (latest is not null)
+                            {
+                                <span>@((latest.BaseRate - latest.DiaspoDirectRate).ToString("N2"))</span>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </h3>
+                        @if (latest is not null)
+                        {
+                            <span class="text-muted small">Base − DiaspoDirect</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (showForm)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">@(formModel.Id == Guid.Empty ? "New Exchange Rate" : "Edit Exchange Rate")</h5>
+                <button type="button" class="btn-close" @onclick="CloseForm"></button>
+            </div>
+            <div class="card-body">
+                <EditForm Model="formModel" OnValidSubmit="SaveRate" FormName="save-rate">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Rate Date <span class="text-danger">*</span></label>
+                            <InputDate @bind-Value="formModel.RateDate" class="form-control" />
+                            <ValidationMessage For="() => formModel.RateDate" class="text-danger small" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Base Rate (XOF/USD) <span class="text-danger">*</span></label>
+                            <InputNumber @bind-Value="formModel.BaseRate" @bind-Value:after="RecalcRate" class="form-control" placeholder="e.g. 600.00" />
+                            <ValidationMessage For="() => formModel.BaseRate" class="text-danger small" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">DiaspoDirect Rate (XOF/USD)</label>
+                            <input type="text" class="form-control bg-light" readonly value="@formModel.DiaspoDirectRate.ToString("N2")" />
+                            <div class="form-text">Auto-calculated: Base × 0.985</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4">
+                            @(formModel.Id == Guid.Empty ? "Create Rate" : "Save Changes")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseForm">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @if (deletingId != null)
+    {
+        <div class="alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+            <span>Delete the rate for <strong>@deletingDate?.ToString("yyyy-MM-dd")</strong>? This cannot be undone.</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-danger" @onclick="ConfirmDelete">Yes, delete</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => deletingId = null">Cancel</button>
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (rates.Count == 0)
+            {
+                <div class="text-center py-5 text-muted">
+                    <p class="mb-1 fs-5">No exchange rates on record.</p>
+                    <p class="small">Click <strong>New Rate</strong> to add one.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Date</th>
+                                <th class="text-end">Base Rate (XOF/USD)</th>
+                                <th class="text-end">DiaspoDirect Rate (XOF/USD)</th>
+                                <th class="text-end">Spread</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in rates)
+                            {
+                                var spread = r.BaseRate - r.DiaspoDirectRate;
+                                <tr>
+                                    <td class="ps-3 fw-semibold">@r.RateDate.ToString("yyyy-MM-dd")</td>
+                                    <td class="text-end">@r.BaseRate.ToString("N2")</td>
+                                    <td class="text-end">@r.DiaspoDirectRate.ToString("N2")</td>
+                                    <td class="text-end">
+                                        <span class="badge @(spread >= 0 ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle")">
+                                            @spread.ToString("N2")
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenForm(r)">Edit</button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AskDelete(r)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ExchangeRate> rates = [];
+    private RateFormModel formModel = new();
+    private bool showForm;
+    private Guid? deletingId;
+    private DateOnly? deletingDate;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadRates();
+
+    private async Task LoadRates()
+        => rates = await Db.ExchangeRates.AsNoTracking().OrderByDescending(r => r.RateDate).ToListAsync();
+
+    private void RecalcRate()
+        => formModel.DiaspoDirectRate = formModel.BaseRate * 0.985m;
+
+    private void OpenForm(ExchangeRate? rate)
+    {
+        deletingId = null;
+        formModel = rate is null
+            ? new RateFormModel { RateDate = DateOnly.FromDateTime(DateTime.Today) }
+            : new RateFormModel
+            {
+                Id               = rate.Id,
+                RateDate         = rate.RateDate,
+                BaseRate         = rate.BaseRate,
+                DiaspoDirectRate = rate.DiaspoDirectRate
+            };
+        showForm = true;
+    }
+
+    private void CloseForm() => showForm = false;
+
+    private async Task SaveRate()
+    {
+        if (formModel.Id == Guid.Empty)
+        {
+            Db.ExchangeRates.Add(new ExchangeRate
+            {
+                RateDate         = formModel.RateDate,
+                BaseRate         = formModel.BaseRate,
+                DiaspoDirectRate = formModel.DiaspoDirectRate,
+                CreatedAt        = DateTime.UtcNow
+            });
+            successMessage = $"Rate for {formModel.RateDate:yyyy-MM-dd} created.";
+        }
+        else
+        {
+            var existing = await Db.ExchangeRates.FindAsync(formModel.Id);
+            if (existing is not null)
+            {
+                existing.RateDate         = formModel.RateDate;
+                existing.BaseRate         = formModel.BaseRate;
+                existing.DiaspoDirectRate = formModel.DiaspoDirectRate;
+            }
+            successMessage = $"Rate for {formModel.RateDate:yyyy-MM-dd} updated.";
+        }
+
+        await Db.SaveChangesAsync();
+        Db.ChangeTracker.Clear();
+        showForm = false;
+        await LoadRates();
+    }
+
+    private void AskDelete(ExchangeRate r)
+    {
+        showForm = false;
+        deletingId   = r.Id;
+        deletingDate = r.RateDate;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deletingId is null) return;
+        var r = await Db.ExchangeRates.FindAsync(deletingId.Value);
+        if (r is not null)
+        {
+            Db.ExchangeRates.Remove(r);
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+            successMessage = $"Rate for {r.RateDate:yyyy-MM-dd} deleted.";
+        }
+        deletingId = null;
+        await LoadRates();
+    }
+
+    private sealed class RateFormModel
+    {
+        public Guid Id { get; set; } = Guid.Empty;
+
+        [Required]
+        public DateOnly RateDate { get; set; }
+
+        [Required, Range(0.01, 999999.99, ErrorMessage = "Base rate must be greater than 0.")]
+        public decimal BaseRate { get; set; }
+
+        public decimal DiaspoDirectRate { get; set; }
+    }
+}

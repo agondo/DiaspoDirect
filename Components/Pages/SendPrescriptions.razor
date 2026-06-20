@@ -1,0 +1,756 @@
+@page "/send-prescriptions"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using DiaspoDirect.Data
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IWebHostEnvironment Env
+@inject DiaspoDirect.Components.Account.GmailEmailSender EmailSender
+@inject IConfiguration Config
+@inject ILogger<SendPrescriptions> Logger
+
+<PageTitle>Send Prescriptions</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">@(isAdmin ? "All Send Prescriptions" : "Send a Prescription")</h2>
+            <p class="text-muted mb-0">@prescriptions.Count @(prescriptions.Count == 1 ? "prescription" : "prescriptions")</p>
+        </div>
+        @if (!isAdmin)
+        {
+            <button class="btn btn-primary" @onclick="OpenSubmitForm">+ Send Prescription</button>
+        }
+    </div>
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible mb-4" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (showForm && !isAdmin)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Send a Prescription</h5>
+                <button type="button" class="btn-close" @onclick="CloseSubmitForm"></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Name</label>
+                        <input type="text" class="form-control bg-light" value="@(currentUser?.FirstName) @(currentUser?.LastName)" readonly />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Phone</label>
+                        <input type="text" class="form-control bg-light" value="@(currentUser?.PhoneNumber ?? "—")" readonly />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Date</label>
+                        <input type="text" class="form-control bg-light" value="@DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") UTC" readonly />
+                    </div>
+                </div>
+                <EditForm Model="formModel" OnValidSubmit="SubmitPrescription" FormName="send-prescription">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="formModel.CountryName" class="form-select">
+                                <option value="">-- Select Country --</option>
+                                <option value="United States">United States</option>
+                                <option value="Ivory Coast">Ivory Coast</option>
+                                <option value="Senegal">Senegal</option>
+                                <option value="Mali">Mali</option>
+                                <option value="Burkina Faso">Burkina Faso</option>
+                            </InputSelect>
+                            <ValidationMessage For="() => formModel.CountryName" class="text-danger small" />
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">Recipient Name <span class="text-muted small">(optional)</span></label>
+                            <InputText @bind-Value="formModel.RecipientFirstLastName" class="form-control" placeholder="Full name of recipient" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Recipient Phone <span class="text-muted small">(optional)</span></label>
+                            <InputText @bind-Value="formModel.RecipientPhone" class="form-control" placeholder="+1 234 567 890" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Prescription File <span class="text-danger">*</span></label>
+                            <InputFile OnChange="OnFileSelected" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                            @if (selectedFile is not null)
+                            {
+                                <div class="form-text text-success">Selected: @selectedFile.Name (@(selectedFile.Size / 1024) KB)</div>
+                            }
+                            @if (fileError is not null)
+                            {
+                                <div class="form-text text-danger">@fileError</div>
+                            }
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Amount (CFA) <span class="text-danger">*</span></label>
+                            <InputNumber @bind-Value="formModel.AmountCFA" class="form-control" placeholder="e.g. 15000" />
+                            <ValidationMessage For="() => formModel.AmountCFA" class="text-danger small" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Notes <span class="text-muted small">(optional)</span></label>
+                            <InputTextArea @bind-Value="formModel.Notes" class="form-control" rows="2" placeholder="Any additional notes about this prescription..." />
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2 align-items-center">
+                        <button type="submit" class="btn btn-primary px-4" disabled="@isUploading">
+                            @if (isUploading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Uploading...</span>
+                            }
+                            else
+                            {
+                                <span>Send Prescription</span>
+                            }
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseSubmitForm" disabled="@isUploading">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @if (editingId is not null && isAdmin)
+    {
+        <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid var(--bs-primary) !important;">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Update Prescription</h5>
+                <button type="button" class="btn-close" @onclick="() => editingId = null"></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Status</label>
+                        <select class="form-select" @bind="editModel.Status">
+                            @foreach (var s in StatusValues)
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Country</label>
+                        <select class="form-select" @bind="editModel.CountryName">
+                            <option value="">-- Select Country --</option>
+                            <option value="United States">United States</option>
+                            <option value="Ivory Coast">Ivory Coast</option>
+                            <option value="Senegal">Senegal</option>
+                            <option value="Mali">Mali</option>
+                            <option value="Burkina Faso">Burkina Faso</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Recipient Name</label>
+                        <input type="text" class="form-control" @bind="editModel.RecipientFirstLastName" placeholder="Full name of recipient" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Recipient Phone</label>
+                        <input type="text" class="form-control" @bind="editModel.RecipientPhone" placeholder="+1 234 567 890" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Notes</label>
+                        <textarea class="form-control" rows="2" @bind="editModel.Notes" placeholder="Admin notes..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button class="btn btn-primary px-4" @onclick="SaveEdit">Save Changes</button>
+                    <button class="btn btn-outline-secondary" @onclick="() => editingId = null">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (userEditingId is not null && !isAdmin)
+    {
+        <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid var(--bs-info) !important;">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Edit Prescription</h5>
+                <button type="button" class="btn-close" @onclick="() => userEditingId = null"></button>
+            </div>
+            <div class="card-body">
+                <EditForm Model="userEditModel" OnValidSubmit="SaveUserEdit" FormName="edit-user">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="userEditModel.CountryName" class="form-select">
+                                <option value="">-- Select Country --</option>
+                                <option value="United States">United States</option>
+                                <option value="Ivory Coast">Ivory Coast</option>
+                                <option value="Senegal">Senegal</option>
+                                <option value="Mali">Mali</option>
+                                <option value="Burkina Faso">Burkina Faso</option>
+                            </InputSelect>
+                            <ValidationMessage For="() => userEditModel.CountryName" class="text-danger small" />
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold">Recipient Name</label>
+                            <InputText @bind-Value="userEditModel.RecipientFirstLastName" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Recipient Phone</label>
+                            <InputText @bind-Value="userEditModel.RecipientPhone" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Amount (CFA) <span class="text-danger">*</span></label>
+                            <InputNumber @bind-Value="userEditModel.AmountCFA" class="form-control" />
+                            <ValidationMessage For="() => userEditModel.AmountCFA" class="text-danger small" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Notes</label>
+                            <InputTextArea @bind-Value="userEditModel.Notes" class="form-control" rows="2" />
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => userEditingId = null">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (prescriptions.Count == 0)
+            {
+                <div class="text-center py-5 text-muted">
+                    <p class="mb-1 fs-5">No prescriptions found.</p>
+                    @if (!isAdmin)
+                    {
+                        <p class="small">Click <strong>Send Prescription</strong> to add one.</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Date</th>
+                                @if (isAdmin)
+                                {
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                }
+                                <th>Country</th>
+                                <th>Recipient</th>
+                                <th>File</th>
+                                <th>Amount CFA</th>
+                                <th>Amount USD</th>
+                                <th class="text-center">Status</th>
+                                <th>Notes</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rx in prescriptions)
+                            {
+                                <tr class="@(editingId == rx.Id || userEditingId == rx.Id || deletingId == rx.Id ? "table-active" : "")">
+                                    <td class="ps-3 text-nowrap">
+                                        <span class="text-muted small">@rx.CreatedDate.ToString("yyyy-MM-dd")</span>
+                                        <div class="text-muted small">@rx.CreatedDate.ToString("HH:mm") UTC</div>
+                                    </td>
+                                    @if (isAdmin)
+                                    {
+                                        <td>
+                                            <div class="fw-semibold">@rx.FirstName @rx.LastName</div>
+                                        </td>
+                                        <td class="text-muted small">@rx.PhoneNumber</td>
+                                    }
+                                    <td class="fw-semibold small">@rx.CountryName</td>
+                                    <td class="small">
+                                        @if (!string.IsNullOrWhiteSpace(rx.RecipientFirstLastName))
+                                        {
+                                            <div class="fw-semibold">@rx.RecipientFirstLastName</div>
+                                            <div class="text-muted">@(rx.RecipientPhone ?? "")</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a href="@rx.PrescriptionFileUrl" target="_blank" class="text-decoration-none small">
+                                            <span class="bi bi-file-earmark-text me-1"></span>@rx.PrescriptionFileName
+                                        </a>
+                                    </td>
+                                    <td class="fw-semibold text-nowrap">@rx.AmountCFA.ToString("N0") CFA</td>
+                                    <td class="text-muted text-nowrap">@(rx.AmountUSD.HasValue ? rx.AmountUSD.Value.ToString("N2") + " USD" : "—")</td>
+                                    <td class="text-center">
+                                        <span class="badge @StatusBadgeClass(rx.Status) rounded-pill">@(rx.Status == "Paid" ? "ReceiptUSA" : rx.Status)</span>
+                                    </td>
+                                    <td class="text-muted small" style="max-width:200px;">
+                                        @if (string.IsNullOrWhiteSpace(rx.Notes))
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            <span title="@rx.Notes">@(rx.Notes.Length > 60 ? rx.Notes[..60] + "…" : rx.Notes)</span>
+                                        }
+                                    </td>
+                                    @if (isAdmin)
+                                    {
+                                        <td class="text-end pe-3 text-nowrap">
+                                            @if (deletingId == rx.Id)
+                                            {
+                                                <span class="text-danger small me-1">Delete?</span>
+                                                <button class="btn btn-sm btn-danger me-1" @onclick="DeletePrescription">Yes</button>
+                                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => deletingId = null">No</button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenEditPanel(rx)">Edit</button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(rx)">Delete</button>
+                                            }
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td class="text-end pe-3 text-nowrap">
+                                            @if (rx.Status == "Pending")
+                                            {
+                                                @if (deletingId == rx.Id)
+                                                {
+                                                    <span class="text-danger small me-1">Delete?</span>
+                                                    <button class="btn btn-sm btn-danger me-1" @onclick="DeletePrescription">Yes</button>
+                                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => deletingId = null">No</button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenUserEditPanel(rx)">Edit</button>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(rx)">Delete</button>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted small">—</span>
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<SendPrescription> prescriptions = [];
+    private ApplicationUser? currentUser;
+    private bool isAdmin;
+    private bool showForm;
+    private bool isUploading;
+    private IBrowserFile? selectedFile;
+    private string? fileError;
+    private string? successMessage;
+    private string? errorMessage;
+    private PrescriptionFormModel formModel = new();
+    private Guid? editingId;
+    private AdminUpdateModel editModel = new();
+    private Guid? userEditingId;
+    private UserEditModel userEditModel = new();
+    private Guid? deletingId;
+
+    private static readonly string[] StatusValues =
+    [
+        "Pending", "Submitted", "Awaiting Payment", "Paid",
+        "Sent To Pharmacy", "Completed", "Rejected"
+    ];
+
+    private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAdmin = auth.User.IsInRole("Admin");
+        var email = auth.User.Identity?.Name;
+        if (email is not null)
+            currentUser = await UserManager.FindByNameAsync(email);
+        await LoadPrescriptions();
+    }
+
+    private async Task LoadPrescriptions()
+    {
+        if (isAdmin)
+            prescriptions = await Db.SendPrescriptions.AsNoTracking()
+                .OrderByDescending(r => r.CreatedDate).ToListAsync();
+        else if (currentUser is not null)
+            prescriptions = await Db.SendPrescriptions.AsNoTracking()
+                .Where(r => r.UserId == currentUser.Id)
+                .OrderByDescending(r => r.CreatedDate).ToListAsync();
+    }
+
+    private void OpenSubmitForm()
+    {
+        editingId = null;
+        formModel = new PrescriptionFormModel();
+        selectedFile = null;
+        fileError = null;
+        showForm = true;
+    }
+
+    private void CloseSubmitForm()
+    {
+        showForm = false;
+        selectedFile = null;
+        fileError = null;
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        fileError = null;
+        var file = e.File;
+        if (file.Size > MaxFileSize)
+        {
+            fileError = "File is too large. Maximum allowed size is 10 MB.";
+            selectedFile = null;
+            return;
+        }
+        selectedFile = file;
+    }
+
+    private async Task SubmitPrescription()
+    {
+        if (currentUser is null) return;
+        if (selectedFile is null)
+        {
+            fileError = "Please select a prescription file.";
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = null;
+
+        try
+        {
+            var uploadsDir = Path.Combine(Env.WebRootPath, "PrescriptionsDir");
+            Directory.CreateDirectory(uploadsDir);
+            var ext = Path.GetExtension(selectedFile.Name);
+            var storedName = $"{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(uploadsDir, storedName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await selectedFile.OpenReadStream(MaxFileSize).CopyToAsync(stream);
+            }
+
+            Db.SendPrescriptions.Add(new SendPrescription
+            {
+                UserId                 = currentUser.Id,
+                FirstName              = currentUser.FirstName ?? "",
+                LastName               = currentUser.LastName ?? "",
+                PhoneNumber            = currentUser.PhoneNumber ?? "",
+                CountryName            = formModel.CountryName,
+                RecipientFirstLastName = formModel.RecipientFirstLastName,
+                RecipientPhone         = formModel.RecipientPhone,
+                PrescriptionFileName   = selectedFile.Name,
+                PrescriptionFileUrl    = $"/PrescriptionsDir/{storedName}",
+                AmountCFA              = formModel.AmountCFA,
+                AmountUSD              = formModel.AmountCFA / 555m,
+                Status                 = "Pending",
+                CreatedDate            = DateTime.UtcNow,
+                Notes                  = formModel.Notes
+            });
+
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+
+            await SendNewPrescriptionEmails(new SendPrescription
+            {
+                FirstName              = currentUser.FirstName ?? "",
+                LastName               = currentUser.LastName ?? "",
+                PhoneNumber            = currentUser.PhoneNumber ?? "",
+                CountryName            = formModel.CountryName,
+                RecipientFirstLastName = formModel.RecipientFirstLastName,
+                AmountCFA              = formModel.AmountCFA,
+                AmountUSD              = formModel.AmountCFA / 555m,
+                CreatedDate            = DateTime.UtcNow
+            }, currentUser.Email!);
+
+            successMessage = "Prescription sent successfully.";
+            showForm = false;
+            selectedFile = null;
+            fileError = null;
+            await LoadPrescriptions();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void OpenUserEditPanel(SendPrescription rx)
+    {
+        showForm = false;
+        deletingId = null;
+        editingId = null;
+        userEditingId = rx.Id;
+        userEditModel = new UserEditModel
+        {
+            Id                     = rx.Id,
+            CountryName            = rx.CountryName,
+            RecipientFirstLastName = rx.RecipientFirstLastName,
+            RecipientPhone         = rx.RecipientPhone,
+            AmountCFA              = rx.AmountCFA,
+            Notes                  = rx.Notes
+        };
+    }
+
+    private async Task SaveUserEdit()
+    {
+        if (userEditingId is null) return;
+        var rx = await Db.SendPrescriptions.FindAsync(userEditingId.Value);
+        if (rx is not null)
+        {
+            rx.CountryName            = userEditModel.CountryName;
+            rx.RecipientFirstLastName = userEditModel.RecipientFirstLastName;
+            rx.RecipientPhone         = userEditModel.RecipientPhone;
+            rx.AmountCFA              = userEditModel.AmountCFA;
+            rx.AmountUSD              = userEditModel.AmountCFA / 555m;
+            rx.Notes                  = userEditModel.Notes;
+            rx.UpdatedDate            = DateTime.UtcNow;
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+            successMessage = "Prescription updated.";
+        }
+        userEditingId = null;
+        await LoadPrescriptions();
+    }
+
+    private void ConfirmDelete(SendPrescription rx)
+    {
+        deletingId    = rx.Id;
+        editingId     = null;
+        userEditingId = null;
+    }
+
+    private async Task DeletePrescription()
+    {
+        if (deletingId is null) return;
+        var rx = await Db.SendPrescriptions.FindAsync(deletingId.Value);
+        if (rx is not null)
+        {
+            if (!string.IsNullOrEmpty(rx.PrescriptionFileUrl))
+            {
+                var filePath = Path.Combine(Env.WebRootPath,
+                    rx.PrescriptionFileUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(filePath)) File.Delete(filePath);
+            }
+            Db.SendPrescriptions.Remove(rx);
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+            successMessage = "Prescription deleted.";
+        }
+        deletingId = null;
+        await LoadPrescriptions();
+    }
+
+    private void OpenEditPanel(SendPrescription rx)
+    {
+        showForm = false;
+        editingId = rx.Id;
+        editModel = new AdminUpdateModel
+        {
+            Id                     = rx.Id,
+            Status                 = rx.Status,
+            CountryName            = rx.CountryName,
+            RecipientFirstLastName = rx.RecipientFirstLastName,
+            RecipientPhone         = rx.RecipientPhone,
+            Notes                  = rx.Notes
+        };
+    }
+
+    private async Task SaveEdit()
+    {
+        if (editingId is null) return;
+        var rx = await Db.SendPrescriptions.FindAsync(editingId.Value);
+        if (rx is not null)
+        {
+            rx.Status                 = editModel.Status;
+            rx.AmountUSD              = rx.AmountCFA / 555m;
+            rx.CountryName            = editModel.CountryName ?? rx.CountryName;
+            rx.RecipientFirstLastName = editModel.RecipientFirstLastName;
+            rx.RecipientPhone         = editModel.RecipientPhone;
+            rx.Notes                  = editModel.Notes;
+            rx.UpdatedDate            = DateTime.UtcNow;
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+
+            var prescriptionUser = await UserManager.FindByIdAsync(rx.UserId);
+            if (prescriptionUser?.Email is not null)
+                await SendStatusUpdateEmail(prescriptionUser.Email, prescriptionUser.FirstName ?? rx.FirstName, rx);
+
+            successMessage = "Prescription updated.";
+        }
+        editingId = null;
+        await LoadPrescriptions();
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "Completed"        => "bg-success-subtle text-success border border-success-subtle",
+        "Rejected"         => "bg-danger-subtle text-danger border border-danger-subtle",
+        "Paid"             => "bg-primary-subtle text-primary border border-primary-subtle",
+        "Awaiting Payment" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "Sent To Pharmacy" => "bg-info-subtle text-info border border-info-subtle",
+        "Submitted"        => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        _                  => "bg-light text-muted border"
+    };
+
+    private sealed class PrescriptionFormModel
+    {
+        [Required(ErrorMessage = "Country is required."), MaxLength(100)]
+        public string CountryName { get; set; } = "";
+
+        [MaxLength(200)]
+        public string? RecipientFirstLastName { get; set; }
+
+        [MaxLength(30)]
+        public string? RecipientPhone { get; set; }
+
+        [Required(ErrorMessage = "Amount in CFA is required.")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0.")]
+        public decimal AmountCFA { get; set; }
+
+        public string? Notes { get; set; }
+    }
+
+    private sealed class UserEditModel
+    {
+        public Guid Id { get; set; }
+        [Required(ErrorMessage = "Country is required."), MaxLength(100)]
+        public string CountryName { get; set; } = "";
+        [MaxLength(200)]
+        public string? RecipientFirstLastName { get; set; }
+        [MaxLength(30)]
+        public string? RecipientPhone { get; set; }
+        [Required(ErrorMessage = "Amount in CFA is required.")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0.")]
+        public decimal AmountCFA { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    private sealed class AdminUpdateModel
+    {
+        public Guid Id { get; set; }
+        public string Status { get; set; } = "Pending";
+        public string? CountryName { get; set; }
+        public string? RecipientFirstLastName { get; set; }
+        public string? RecipientPhone { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    private async Task SendNewPrescriptionEmails(SendPrescription rx, string userEmail)
+    {
+        try
+        {
+            var userBody =
+                $"<p>Hi {rx.FirstName},</p>" +
+                "<p>We've received your prescription request. Here's a summary:</p>" +
+                "<table cellpadding=\"6\" style=\"border-collapse:collapse;\">" +
+                $"<tr><td><strong>Country:</strong></td><td>{rx.CountryName}</td></tr>" +
+                $"<tr><td><strong>Amount (CFA):</strong></td><td>{rx.AmountCFA:N0} CFA</td></tr>" +
+                $"<tr><td><strong>Amount (USD):</strong></td><td>{rx.AmountUSD:N2} USD</td></tr>" +
+                "<tr><td><strong>Status:</strong></td><td>Pending</td></tr>" +
+                $"<tr><td><strong>Submitted:</strong></td><td>{rx.CreatedDate:yyyy-MM-dd HH:mm} UTC</td></tr>" +
+                "</table>" +
+                "<p>We'll notify you as your prescription status changes.</p>" +
+                "<p>&#8212; The DiaspoDirect Team</p>";
+
+            await EmailSender.SendEmailAsync(userEmail,
+                "Your prescription request has been received - DiaspoDirect",
+                userBody);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to send prescription confirmation email to {Email}", userEmail);
+        }
+
+        try
+        {
+            var adminAddress = Config["Email:AdminAddress"] ?? "ceo@flaubertgroup.com";
+            var adminBody =
+                "<p>A new prescription request has been submitted on DiaspoDirect.</p>" +
+                "<table cellpadding=\"6\" style=\"border-collapse:collapse;\">" +
+                $"<tr><td><strong>Name:</strong></td><td>{rx.FirstName} {rx.LastName}</td></tr>" +
+                $"<tr><td><strong>Phone:</strong></td><td>{rx.PhoneNumber}</td></tr>" +
+                $"<tr><td><strong>Country:</strong></td><td>{rx.CountryName}</td></tr>" +
+                $"<tr><td><strong>Recipient:</strong></td><td>{rx.RecipientFirstLastName ?? "n/a"}</td></tr>" +
+                $"<tr><td><strong>Amount (CFA):</strong></td><td>{rx.AmountCFA:N0} CFA</td></tr>" +
+                $"<tr><td><strong>Amount (USD):</strong></td><td>{rx.AmountUSD:N2} USD</td></tr>" +
+                $"<tr><td><strong>Submitted:</strong></td><td>{rx.CreatedDate:yyyy-MM-dd HH:mm} UTC</td></tr>" +
+                "</table>" +
+                "<p><a href=\"/send-prescriptions\">Review on DiaspoDirect</a></p>";
+
+            await EmailSender.SendEmailAsync(adminAddress,
+                $"New prescription request - {rx.FirstName} {rx.LastName}",
+                adminBody);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to send admin prescription notification email");
+        }
+    }
+
+    private async Task SendStatusUpdateEmail(string toEmail, string firstName, SendPrescription rx)
+    {
+        try
+        {
+            var notesRow = string.IsNullOrWhiteSpace(rx.Notes)
+                ? ""
+                : $"<tr><td><strong>Notes:</strong></td><td>{rx.Notes}</td></tr>";
+
+            var body =
+                $"<p>Hi {firstName},</p>" +
+                "<p>Your prescription request status has been updated.</p>" +
+                "<table cellpadding=\"6\" style=\"border-collapse:collapse;\">" +
+                $"<tr><td><strong>New Status:</strong></td><td>{rx.Status}</td></tr>" +
+                $"<tr><td><strong>Country:</strong></td><td>{rx.CountryName}</td></tr>" +
+                $"<tr><td><strong>Amount (CFA):</strong></td><td>{rx.AmountCFA:N0} CFA</td></tr>" +
+                notesRow +
+                "</table>" +
+                "<p>Log in to <a href=\"https://diaspodirect.com/send-prescriptions\">DiaspoDirect</a> to view full details.</p>" +
+                "<p>&#8212; The DiaspoDirect Team</p>";
+
+            await EmailSender.SendEmailAsync(toEmail,
+                $"Your prescription status has been updated - {rx.Status}",
+                body);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to send status update email to {Email}", toEmail);
+        }
+    }
+}

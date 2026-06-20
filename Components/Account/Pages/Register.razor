@@ -1,0 +1,552 @@
+@page "/Account/Register"
+@layout DiaspoDirect.Components.Account.Shared.LoginLayout
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using DiaspoDirect.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IUserStore<ApplicationUser> UserStore
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Create Account — DiaspoDirect</PageTitle>
+
+<div class="login-page">
+    <!-- Left branding panel -->
+    <div class="login-brand">
+        <div class="login-brand-inner">
+            <a href="/" class="login-logo">DiaspoDirect</a>
+            <div class="login-brand-body">
+                <h2 class="login-brand-headline">Join thousands helping<br />their families back home.</h2>
+                <p class="login-brand-sub">Create your free DiaspoDirect account and start paying for prescriptions and essential services for your loved ones in Côte d'Ivoire — securely, from anywhere.</p>
+                <div class="login-trust-badges">
+                    <div class="login-badge">
+                        <span class="login-badge-icon">&#128274;</span>
+                        <span>Bank-grade security</span>
+                    </div>
+                    <div class="login-badge">
+                        <span class="login-badge-icon">&#127758;</span>
+                        <span>Cross-border payments</span>
+                    </div>
+                    <div class="login-badge">
+                        <span class="login-badge-icon">&#9989;</span>
+                        <span>Verified pharmacies</span>
+                    </div>
+                </div>
+            </div>
+            <p class="login-brand-footer">
+                <a href="/" class="login-back-link">&#8592; Back to Home</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Right form panel -->
+    <div class="login-form-panel">
+        <div class="login-form-card">
+            <div class="login-form-header">
+                <h1 class="login-form-title">Create your account</h1>
+                <p class="login-form-subtitle">Free to join — get started in seconds</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Message))
+            {
+                <div class="login-error-alert">
+                    <span class="login-error-icon">&#9888;</span>
+                    @Message.Replace("Error: ", "")
+                </div>
+            }
+
+            <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                <DataAnnotationsValidator />
+
+                <div class="login-field">
+                    <label class="login-label">First Name</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#128100;</span>
+                        <InputText @bind-Value="Input.FirstName"
+                                   class="login-input"
+                                   autocomplete="given-name"
+                                   aria-required="true"
+                                   placeholder="Ahmed" />
+                    </div>
+                    <ValidationMessage For="() => Input.FirstName" class="login-validation" />
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label">Last Name</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#128100;</span>
+                        <InputText @bind-Value="Input.LastName"
+                                   class="login-input"
+                                   autocomplete="family-name"
+                                   aria-required="true"
+                                   placeholder="Gondo" />
+                    </div>
+                    <ValidationMessage For="() => Input.LastName" class="login-validation" />
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label">Phone Number</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#128222;</span>
+                        <InputText @bind-Value="Input.PhoneNumber"
+                                   class="login-input"
+                                   autocomplete="tel"
+                                   placeholder="+1 555 000 0000" />
+                    </div>
+                    <ValidationMessage For="() => Input.PhoneNumber" class="login-validation" />
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label">Country</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#127760;</span>
+                        <InputSelect @bind-Value="Input.Country" class="login-input login-select">
+                            <option value="">-- Select Country --</option>
+                            <option value="United States">United States</option>
+                            <option value="Ivory Coast">Ivory Coast</option>
+                            <option value="Senegal">Senegal</option>
+                            <option value="Mali">Mali</option>
+                            <option value="Burkina Faso">Burkina Faso</option>
+                        </InputSelect>
+                    </div>
+                    <ValidationMessage For="() => Input.Country" class="login-validation" />
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label">Email address</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#9993;</span>
+                        <InputText @bind-Value="Input.Email"
+                                   class="login-input"
+                                   autocomplete="username"
+                                   aria-required="true"
+                                   placeholder="you@example.com" />
+                    </div>
+                    <ValidationMessage For="() => Input.Email" class="login-validation" />
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label">Password</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#128274;</span>
+                        <InputText type="password"
+                                   @bind-Value="Input.Password"
+                                   class="login-input"
+                                   autocomplete="new-password"
+                                   aria-required="true"
+                                   placeholder="••••••••" />
+                    </div>
+                    <ValidationMessage For="() => Input.Password" class="login-validation" />
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label">Confirm Password</label>
+                    <div class="login-input-wrap">
+                        <span class="login-input-icon">&#128274;</span>
+                        <InputText type="password"
+                                   @bind-Value="Input.ConfirmPassword"
+                                   class="login-input"
+                                   autocomplete="new-password"
+                                   aria-required="true"
+                                   placeholder="••••••••" />
+                    </div>
+                    <ValidationMessage For="() => Input.ConfirmPassword" class="login-validation" />
+                </div>
+
+                <button type="submit" class="login-submit">Create Account</button>
+            </EditForm>
+
+            <p class="login-register-link">
+                Already have an account?
+                <a href="/Account/Login">Sign in</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .login-page {
+        display: flex;
+        min-height: 100vh;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+
+    /* ── Left brand panel ── */
+    .login-brand {
+        flex: 0 0 42%;
+        background: linear-gradient(160deg, #0d1b3e 0%, #1a2f6e 60%, #0d2b5e 100%);
+        display: flex;
+        align-items: stretch;
+        padding: 2.5rem 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-brand::before {
+        content: '';
+        position: absolute;
+        top: -80px; right: -80px;
+        width: 320px; height: 320px;
+        border-radius: 50%;
+        background: rgba(245, 184, 0, 0.08);
+    }
+
+    .login-brand::after {
+        content: '';
+        position: absolute;
+        bottom: -60px; left: -60px;
+        width: 240px; height: 240px;
+        border-radius: 50%;
+        background: rgba(245, 184, 0, 0.06);
+    }
+
+    .login-brand-inner {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-logo {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #f5b800;
+        text-decoration: none;
+        letter-spacing: -0.5px;
+    }
+
+    .login-brand-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 3rem 0;
+    }
+
+    .login-brand-headline {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.3;
+        margin-bottom: 1.25rem;
+    }
+
+    .login-brand-sub {
+        font-size: 1rem;
+        color: rgba(255,255,255,0.72);
+        line-height: 1.65;
+        max-width: 340px;
+        margin-bottom: 2.5rem;
+    }
+
+    .login-trust-badges {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+    }
+
+    .login-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(255,255,255,0.85);
+        font-size: 0.92rem;
+    }
+
+    .login-badge-icon {
+        font-size: 1.1rem;
+        width: 2rem;
+        height: 2rem;
+        background: rgba(245, 184, 0, 0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .login-back-link {
+        color: rgba(255,255,255,0.5);
+        font-size: 0.875rem;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .login-back-link:hover { color: #f5b800; }
+
+    /* ── Right form panel ── */
+    .login-form-panel {
+        flex: 1;
+        background: #f7f8fc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.5rem;
+    }
+
+    .login-form-card {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        padding: 2.75rem 2.5rem;
+        width: 100%;
+        max-width: 420px;
+    }
+
+    .login-form-header {
+        margin-bottom: 2rem;
+    }
+
+    .login-form-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #0d1b3e;
+        margin-bottom: 0.35rem;
+    }
+
+    .login-form-subtitle {
+        color: #6b7280;
+        font-size: 0.925rem;
+    }
+
+    /* Error alert */
+    .login-error-alert {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        color: #b91c1c;
+        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .login-error-icon { font-size: 1rem; }
+
+    /* Fields */
+    .login-field { margin-bottom: 1.25rem; }
+
+    .login-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.45rem;
+    }
+
+    .login-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .login-input-icon {
+        position: absolute;
+        left: 0.875rem;
+        font-size: 1rem;
+        color: #9ca3af;
+        pointer-events: none;
+        line-height: 1;
+    }
+
+    .login-input {
+        width: 100%;
+        padding: 0.75rem 0.875rem 0.75rem 2.5rem;
+        border: 1.5px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        color: #111827;
+        background: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        outline: none;
+        appearance: none;
+    }
+
+    .login-input:focus {
+        border-color: #1a2f6e;
+        box-shadow: 0 0 0 3px rgba(26, 47, 110, 0.12);
+    }
+
+    .login-input::placeholder { color: #9ca3af; }
+
+    .login-select { cursor: pointer; }
+
+    .login-validation {
+        display: block;
+        color: #b91c1c;
+        font-size: 0.8rem;
+        margin-top: 0.35rem;
+    }
+
+    /* Submit */
+    .login-submit {
+        width: 100%;
+        padding: 0.85rem;
+        background: #f5b800;
+        color: #0d1b3e;
+        font-size: 1rem;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+        letter-spacing: 0.01em;
+    }
+
+    .login-submit:hover {
+        background: #e0a800;
+        box-shadow: 0 4px 12px rgba(245,184,0,0.35);
+    }
+
+    .login-submit:active { transform: translateY(1px); }
+
+    /* Sign-in link */
+    .login-register-link {
+        text-align: center;
+        margin-top: 1.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .login-register-link a {
+        color: #1a2f6e;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .login-register-link a:hover { text-decoration: underline; }
+
+    /* ── Responsive ── */
+    @@media (max-width: 768px) {
+        .login-brand { display: none; }
+        .login-form-panel { background: #0d1b3e; }
+        .login-form-card { box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+    }
+</style>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        var user = CreateUser();
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        user.FirstName = Input.FirstName;
+        user.LastName = Input.LastName;
+        user.PhoneNumber = Input.PhoneNumber;
+        user.Country = Input.Country;
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            return;
+        }
+
+        Logger.LogInformation("User created a new account with password.");
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        if (UserManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            RedirectManager.RedirectTo(
+                "Account/RegisterConfirmation",
+                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+        }
+
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectTo(ReturnUrl);
+    }
+
+    private ApplicationUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<ApplicationUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
+                $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor.");
+        }
+    }
+
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+        return (IUserEmailStore<ApplicationUser>)UserStore;
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [MaxLength(100)]
+        [Display(Name = "First Name")]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [MaxLength(100)]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; } = "";
+
+        [Phone]
+        [MaxLength(30)]
+        [Display(Name = "Phone Number")]
+        public string? PhoneNumber { get; set; }
+
+        [MaxLength(100)]
+        [Display(Name = "Country")]
+        public string? Country { get; set; }
+
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

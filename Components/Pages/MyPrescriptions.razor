@@ -1,0 +1,620 @@
+@page "/my-prescriptions"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using DiaspoDirect.Data
+@using DiaspoDirect.Services
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IWebHostEnvironment Env
+@inject StripeCheckoutService StripeCheckout
+@inject NavigationManager Nav
+
+<PageTitle>My Prescriptions</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">@(isAdmin ? "All Prescriptions" : "My Prescriptions")</h2>
+            <p class="text-muted mb-0">@(isAdmin ? prescriptions.Count : userPrescriptions.Count) @((isAdmin ? prescriptions.Count : userPrescriptions.Count) == 1 ? "prescription" : "prescriptions")</p>
+        </div>
+        @* Submit form hidden — user view shows prescriptions received via RecipientPhone *@
+    </div>
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible mb-4" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (showForm && !isAdmin)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Submit New Prescription</h5>
+                <button type="button" class="btn-close" @onclick="CloseSubmitForm"></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Name</label>
+                        <input type="text" class="form-control bg-light" value="@(currentUser?.FirstName) @(currentUser?.LastName)" readonly />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Phone</label>
+                        <input type="text" class="form-control bg-light" value="@(currentUser?.PhoneNumber ?? "—")" readonly />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Date</label>
+                        <input type="text" class="form-control bg-light" value="@DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") UTC" readonly />
+                    </div>
+                </div>
+                <EditForm Model="formModel" OnValidSubmit="SubmitPrescription" FormName="submit-prescription">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Recipient Name <span class="text-muted small">(optional — if ordering for someone else)</span></label>
+                            <InputText @bind-Value="formModel.RecipientFirstLastName" class="form-control" placeholder="Full name of recipient" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Recipient Phone <span class="text-muted small">(optional)</span></label>
+                            <InputText @bind-Value="formModel.RecipientPhone" class="form-control" placeholder="+1 234 567 890" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Prescription File <span class="text-danger">*</span></label>
+                            <InputFile OnChange="OnFileSelected" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                            @if (selectedFile is not null)
+                            {
+                                <div class="form-text text-success">Selected: @selectedFile.Name (@(selectedFile.Size / 1024) KB)</div>
+                            }
+                            @if (fileError is not null)
+                            {
+                                <div class="form-text text-danger">@fileError</div>
+                            }
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Amount (CFA) <span class="text-danger">*</span></label>
+                            <InputNumber @bind-Value="formModel.AmountCFA" class="form-control" placeholder="e.g. 15000" />
+                            <ValidationMessage For="() => formModel.AmountCFA" class="text-danger small" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Notes <span class="text-muted small">(optional)</span></label>
+                            <InputTextArea @bind-Value="formModel.Notes" class="form-control" rows="2" placeholder="Any additional notes about this prescription..." />
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2 align-items-center">
+                        <button type="submit" class="btn btn-primary px-4" disabled="@isUploading">
+                            @if (isUploading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Uploading...</span>
+                            }
+                            else
+                            {
+                                <span>Submit Prescription</span>
+                            }
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseSubmitForm" disabled="@isUploading">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @if (editingId is not null && isAdmin)
+    {
+        <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid var(--bs-primary) !important;">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Update Prescription</h5>
+                <button type="button" class="btn-close" @onclick="() => editingId = null"></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Status</label>
+                        <select class="form-select" @bind="editModel.Status">
+                            @foreach (var s in StatusValues)
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Amount (USD)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" @bind="editModel.AmountUSD" placeholder="Optional" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Recipient Name</label>
+                        <input type="text" class="form-control" @bind="editModel.RecipientFirstLastName" placeholder="Full name of recipient" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Recipient Phone</label>
+                        <input type="text" class="form-control" @bind="editModel.RecipientPhone" placeholder="+1 234 567 890" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Notes</label>
+                        <textarea class="form-control" rows="2" @bind="editModel.Notes" placeholder="Admin notes..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button class="btn btn-primary px-4" @onclick="SaveEdit">Save Changes</button>
+                    <button class="btn btn-outline-secondary" @onclick="() => editingId = null">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (isAdmin)
+            {
+                @if (prescriptions.Count == 0)
+                {
+                    <div class="text-center py-5 text-muted">
+                        <p class="mb-1 fs-5">No prescriptions found.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Recipient</th>
+                                    <th>File</th>
+                                    <th>Amount CFA</th>
+                                    <th>Amount USD</th>
+                                    <th class="text-center">Status</th>
+                                    <th>Notes</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var rx in prescriptions)
+                                {
+                                    <tr class="@(editingId == rx.Id ? "table-active" : "")">
+                                        <td class="ps-3 text-nowrap">
+                                            <span class="text-muted small">@rx.CreatedDate.ToString("yyyy-MM-dd")</span>
+                                            <div class="text-muted small">@rx.CreatedDate.ToString("HH:mm") UTC</div>
+                                        </td>
+                                        <td><div class="fw-semibold">@rx.FirstName @rx.LastName</div></td>
+                                        <td class="text-muted small">@rx.PhoneNumber</td>
+                                        <td class="small">
+                                            @if (!string.IsNullOrWhiteSpace(rx.RecipientFirstLastName))
+                                            {
+                                                <div class="fw-semibold">@rx.RecipientFirstLastName</div>
+                                                <div class="text-muted">@(rx.RecipientPhone ?? "")</div>
+                                            }
+                                            else { <span class="text-muted">—</span> }
+                                        </td>
+                                        <td>
+                                            <a href="@rx.PrescriptionFileUrl" target="_blank" class="text-decoration-none small">
+                                                <span class="bi bi-file-earmark-text me-1"></span>@rx.PrescriptionFileName
+                                            </a>
+                                            <div>
+                                                <a class="small text-success" style="cursor:pointer;" @onclick="() => OpenViewer(rx.PrescriptionFileUrl, rx.PrescriptionFileName)">View Prescription</a>
+                                            </div>
+                                        </td>
+                                        <td class="fw-semibold text-nowrap">@rx.AmountCFA.ToString("N0") CFA</td>
+                                        <td class="text-muted text-nowrap">@(rx.AmountUSD.HasValue ? rx.AmountUSD.Value.ToString("N2") + " USD" : "—")</td>
+                                        <td class="text-center">
+                                            <span class="badge @StatusBadgeClass(rx.Status) rounded-pill">@(rx.Status == "Paid" ? "ReceiptUSA" : rx.Status)</span>
+                                        </td>
+                                        <td class="text-muted small" style="max-width:200px;">
+                                            @if (string.IsNullOrWhiteSpace(rx.Notes)) { <span>—</span> }
+                                            else { <span title="@rx.Notes">@(rx.Notes.Length > 60 ? rx.Notes[..60] + "…" : rx.Notes)</span> }
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <div class="d-flex gap-2 justify-content-end">
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditPanel(rx)">Update</button>
+                                                <a class="btn btn-sm btn-success">Pay this Prescription</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+            else
+            {
+                @if (string.IsNullOrEmpty(currentUser?.PhoneNumber))
+                {
+                    <div class="text-center py-5 text-muted">
+                        <p class="mb-1 fs-5">No phone number on your account.</p>
+                        <p class="small">Add a phone number to your profile to see prescriptions sent to you.</p>
+                    </div>
+                }
+                else if (userPrescriptions.Count == 0)
+                {
+                    <div class="text-center py-5 text-muted">
+                        <p class="mb-1 fs-5">No prescriptions found for your phone number.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Country</th>
+                                    <th>Sender</th>
+                                    <th>File</th>
+                                    <th>Amount CFA</th>
+                                    <th>Amount USD</th>
+                                    <th class="text-center">Status</th>
+                                    <th>Notes</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var rx in userPrescriptions)
+                                {
+                                    <tr>
+                                        <td class="ps-3 text-nowrap">
+                                            <span class="text-muted small">@rx.CreatedDate.ToString("yyyy-MM-dd")</span>
+                                            <div class="text-muted small">@rx.CreatedDate.ToString("HH:mm") UTC</div>
+                                        </td>
+                                        <td class="fw-semibold small">@rx.CountryName</td>
+                                        <td class="small">
+                                            <div class="fw-semibold">@rx.FirstName @rx.LastName</div>
+                                            <div class="text-muted">@rx.PhoneNumber</div>
+                                        </td>
+                                        <td>
+                                            <a href="@rx.PrescriptionFileUrl" target="_blank" class="text-decoration-none small">
+                                                <span class="bi bi-file-earmark-text me-1"></span>@rx.PrescriptionFileName
+                                            </a>
+                                            <div>
+                                                <a class="small text-success" style="cursor:pointer;" @onclick="() => OpenViewer(rx.PrescriptionFileUrl, rx.PrescriptionFileName)">View Prescription</a>
+                                            </div>
+                                        </td>
+                                        <td class="fw-semibold text-nowrap">@rx.AmountCFA.ToString("N0") CFA</td>
+                                        <td class="text-muted text-nowrap">@(rx.AmountUSD.HasValue ? rx.AmountUSD.Value.ToString("N2") + " USD" : "—")</td>
+                                        <td class="text-center">
+                                            <span class="badge @StatusBadgeClass(rx.Status) rounded-pill">@(rx.Status == "Paid" ? "ReceiptUSA" : rx.Status)</span>
+                                        </td>
+                                        <td class="text-muted small" style="max-width:200px;">
+                                            @if (string.IsNullOrWhiteSpace(rx.Notes)) { <span>—</span> }
+                                            else { <span title="@rx.Notes">@(rx.Notes.Length > 60 ? rx.Notes[..60] + "…" : rx.Notes)</span> }
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            @if (rx.Status == "Pending")
+                                            {
+                                                <button class="btn btn-success" @onclick="() => PayPrescription(rx.Id)">
+                                                    Pay this Prescription
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <a href="/payment-history" class="badge bg-success text-decoration-none">ReceiptUSA</a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@if (viewingFileUrl is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.6);" @onclick="CloseViewer">
+        <div class="modal-dialog modal-xl modal-dialog-centered" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <span class="bi bi-file-earmark-medical me-2"></span>@viewingFileName
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseViewer"></button>
+                </div>
+                <div class="modal-body p-0 text-center bg-light" style="min-height:500px;">
+                    @if (IsImageFile(viewingFileUrl))
+                    {
+                        <img src="@viewingFileUrl" class="img-fluid p-3" style="max-height:80vh;object-fit:contain;" alt="Prescription" />
+                    }
+                    else
+                    {
+                        <iframe src="@viewingFileUrl" style="width:100%;height:80vh;border:none;"></iframe>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <a href="@viewingFileUrl" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <span class="bi bi-box-arrow-up-right me-1"></span>Open in new tab
+                    </a>
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseViewer">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MyPrescription> prescriptions = [];
+    private List<SendPrescription> userPrescriptions = [];
+    private ApplicationUser? currentUser;
+    private bool isAdmin;
+    private bool showForm;
+    private bool isUploading;
+    private IBrowserFile? selectedFile;
+    private string? fileError;
+    private string? successMessage;
+    private string? errorMessage;
+    private PrescriptionFormModel formModel = new();
+    private Guid? editingId;
+    private AdminUpdateModel editModel = new();
+    private string? viewingFileUrl;
+    private string? viewingFileName;
+    private static readonly string[] StatusValues =
+    [
+        "Pending", "Submitted", "Awaiting Payment", "Paid",
+        "Sent To Pharmacy", "Completed", "Rejected"
+    ];
+
+    private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAdmin = auth.User.IsInRole("Admin");
+        var email = auth.User.Identity?.Name;
+        if (email is not null)
+            currentUser = await UserManager.FindByNameAsync(email);
+        await LoadPrescriptions();
+    }
+
+    private async Task LoadPrescriptions()
+    {
+        if (isAdmin)
+            prescriptions = await Db.MyPrescriptions.AsNoTracking()
+                .OrderByDescending(r => r.CreatedDate).ToListAsync();
+        else if (currentUser is not null && !string.IsNullOrEmpty(currentUser.PhoneNumber))
+            userPrescriptions = await Db.SendPrescriptions.AsNoTracking()
+                .Where(r => r.RecipientPhone == currentUser.PhoneNumber)
+                .OrderByDescending(r => r.CreatedDate).ToListAsync();
+        else
+            userPrescriptions = [];
+    }
+
+    private void OpenSubmitForm()
+    {
+        editingId = null;
+        formModel = new PrescriptionFormModel();
+        selectedFile = null;
+        fileError = null;
+        showForm = true;
+    }
+
+    private void CloseSubmitForm()
+    {
+        showForm = false;
+        selectedFile = null;
+        fileError = null;
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        fileError = null;
+        var file = e.File;
+        if (file.Size > MaxFileSize)
+        {
+            fileError = "File is too large. Maximum allowed size is 10 MB.";
+            selectedFile = null;
+            return;
+        }
+        selectedFile = file;
+    }
+
+    private async Task SubmitPrescription()
+    {
+        if (currentUser is null) return;
+        if (selectedFile is null)
+        {
+            fileError = "Please select a prescription file.";
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = null;
+
+        try
+        {
+            var uploadsDir = Path.Combine(Env.WebRootPath, "PrescriptionsDir");
+            Directory.CreateDirectory(uploadsDir);
+            var ext = Path.GetExtension(selectedFile.Name);
+            var storedName = $"{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(uploadsDir, storedName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await selectedFile.OpenReadStream(MaxFileSize).CopyToAsync(stream);
+            }
+
+            Db.MyPrescriptions.Add(new MyPrescription
+            {
+                UserId                 = currentUser.Id,
+                FirstName              = currentUser.FirstName ?? "",
+                LastName               = currentUser.LastName ?? "",
+                PhoneNumber            = currentUser.PhoneNumber ?? "",
+                RecipientFirstLastName = formModel.RecipientFirstLastName,
+                RecipientPhone         = formModel.RecipientPhone,
+                PrescriptionFileName   = selectedFile.Name,
+                PrescriptionFileUrl    = $"/PrescriptionsDir/{storedName}",
+                AmountCFA              = formModel.AmountCFA,
+                Status                 = "Pending",
+                CreatedDate            = DateTime.UtcNow,
+                Notes                  = formModel.Notes
+            });
+
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+
+            successMessage = "Prescription submitted successfully.";
+            showForm = false;
+            selectedFile = null;
+            fileError = null;
+            await LoadPrescriptions();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void OpenEditPanel(MyPrescription rx)
+    {
+        showForm = false;
+        editingId = rx.Id;
+        editModel = new AdminUpdateModel
+        {
+            Id                     = rx.Id,
+            Status                 = rx.Status,
+            AmountUSD              = rx.AmountUSD,
+            RecipientFirstLastName = rx.RecipientFirstLastName,
+            RecipientPhone         = rx.RecipientPhone,
+            Notes                  = rx.Notes
+        };
+    }
+
+    private async Task SaveEdit()
+    {
+        if (editingId is null) return;
+        var rx = await Db.MyPrescriptions.FindAsync(editingId.Value);
+        if (rx is not null)
+        {
+            rx.Status                 = editModel.Status;
+            rx.AmountUSD              = editModel.AmountUSD;
+            rx.RecipientFirstLastName = editModel.RecipientFirstLastName;
+            rx.RecipientPhone         = editModel.RecipientPhone;
+            rx.Notes                  = editModel.Notes;
+            rx.UpdatedDate = DateTime.UtcNow;
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+            successMessage = "Prescription updated.";
+        }
+        editingId = null;
+        await LoadPrescriptions();
+    }
+
+    private void OpenViewer(string fileUrl, string fileName)
+    {
+        viewingFileUrl = fileUrl;
+        viewingFileName = fileName;
+    }
+
+    private void CloseViewer()
+    {
+        viewingFileUrl = null;
+        viewingFileName = null;
+    }
+
+    private async Task PayPrescription(Guid prescriptionId)
+    {
+        if (currentUser is null) return;
+        errorMessage = null;
+
+        try
+        {
+            var prescription = userPrescriptions.FirstOrDefault(p => p.Id == prescriptionId);
+            if (prescription is null) return;
+
+            if (prescription.AmountUSD is null)
+            {
+                errorMessage = "Payment amount (USD) has not been set yet. Please wait for an admin to review your prescription.";
+                return;
+            }
+
+            var sessionUrl = await StripeCheckout.CreateCheckoutSessionAsync(
+                prescription,
+                currentUser.Id,
+                prescription.AmountCFA,
+                prescription.AmountUSD.Value,
+                feeUsd: CalculateFee(prescription.AmountUSD.Value),
+                successUrl: $"{Nav.BaseUri}payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancelUrl: $"{Nav.BaseUri}my-prescriptions");
+
+            Nav.NavigateTo(sessionUrl, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Payment could not be initiated: {ex.Message}";
+        }
+    }
+
+    private static decimal CalculateFee(decimal amountUsd)
+    {
+        if (amountUsd < 25m) return 3.99m;
+        if (amountUsd <= 50m) return 4.99m;
+        if (amountUsd <= 100m) return 6.99m;
+        return Math.Round(amountUsd * 0.08m, 2); // 8% for over $100
+    }
+
+    private static bool IsImageFile(string url) =>
+        url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+        url.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+        url.EndsWith(".png", StringComparison.OrdinalIgnoreCase);
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "Completed"        => "bg-success-subtle text-success border border-success-subtle",
+        "Rejected"         => "bg-danger-subtle text-danger border border-danger-subtle",
+        "Paid"             => "bg-primary-subtle text-primary border border-primary-subtle",
+        "Awaiting Payment" => "bg-warning-subtle text-warning border border-warning-subtle",
+        "Sent To Pharmacy" => "bg-info-subtle text-info border border-info-subtle",
+        "Submitted"        => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        _                  => "bg-light text-muted border"
+    };
+
+    private sealed class PrescriptionFormModel
+    {
+        [MaxLength(200)]
+        public string? RecipientFirstLastName { get; set; }
+
+        [MaxLength(30)]
+        public string? RecipientPhone { get; set; }
+
+        [Required(ErrorMessage = "Amount in CFA is required.")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0.")]
+        public decimal AmountCFA { get; set; }
+
+        public string? Notes { get; set; }
+    }
+
+    private sealed class AdminUpdateModel
+    {
+        public Guid Id { get; set; }
+        public string Status { get; set; } = "Pending";
+        public string? RecipientFirstLastName { get; set; }
+        public string? RecipientPhone { get; set; }
+        public decimal? AmountUSD { get; set; }
+        public string? Notes { get; set; }
+    }
+}

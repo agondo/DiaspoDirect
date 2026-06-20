@@ -1,0 +1,475 @@
+@page "/admin/providers"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using DiaspoDirect.Data
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Providers — Admin</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/admin">Admin</a></li>
+                    <li class="breadcrumb-item active">Providers</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0">Providers</h2>
+            <p class="text-muted mb-0">Manage pharmacies, schools, clinics and utilities</p>
+        </div>
+        <button class="btn btn-primary" @onclick="OpenAddModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+            </svg>
+            Add Provider
+        </button>
+    </div>
+
+    <!-- Alerts -->
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible mb-4" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    <!-- Stat cards -->
+    <div class="row g-3 mb-4">
+        @foreach (var (type, color, icon) in StatTypes)
+        {
+            var count = providers.Count(p => p.ProviderType == type);
+            var active = providers.Count(p => p.ProviderType == type && p.IsActive);
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100 stat-card @(filterType == type ? "border border-primary" : "")"
+                     style="cursor:pointer" @onclick="() => SetFilter(type)">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle p-3" style="background:@color+'1a'">
+                            <span style="font-size:1.4rem">@icon</span>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">@type</p>
+                            <h3 class="mb-0 fw-bold">@count</h3>
+                            <span class="text-success small">@active active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Filter bar -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+            <span class="text-muted small fw-semibold">Filter:</span>
+            <button class="btn btn-sm @(filterType == null ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => SetFilter(null)">All (@providers.Count)</button>
+            @foreach (var (type, _, _) in StatTypes)
+            {
+                <button class="btn btn-sm @(filterType == type ? "btn-primary" : "btn-outline-secondary")"
+                        @onclick="() => SetFilter(type)">@type</button>
+            }
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <input class="form-control form-control-sm" style="width:220px"
+                       placeholder="Search name, phone…"
+                       @bind="searchTerm" @bind:event="oninput" />
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="showInactive" @bind="showInactive" />
+                    <label class="form-check-label small" for="showInactive">Show inactive</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @{
+                var rows = FilteredProviders.ToList();
+            }
+            @if (rows.Count == 0)
+            {
+                <div class="text-center text-muted py-5">
+                    <div style="font-size:2rem">🏥</div>
+                    <p class="mt-2 mb-0">No providers found.</p>
+                    <button class="btn btn-sm btn-primary mt-2" @onclick="OpenAddModal">Add your first provider</button>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Name</th>
+                                <th>Type</th>
+                                <th>Phone</th>
+                                <th>Payment Method</th>
+                                <th>Mobile Money</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in rows)
+                            {
+                                <tr class="@(!p.IsActive ? "table-secondary" : "")">
+                                    <td class="ps-3">
+                                        <div class="fw-semibold">@p.ProviderName</div>
+                                        @if (!string.IsNullOrEmpty(p.Address))
+                                        {
+                                            <div class="text-muted small">@p.Address</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @TypeBadge(p.ProviderType)">@p.ProviderType</span>
+                                    </td>
+                                    <td class="small text-muted">@(p.Phone ?? "—")</td>
+                                    <td class="small text-muted">@(p.PaymentMethod ?? "—")</td>
+                                    <td class="small text-muted">@(p.MobileMoneyNumber ?? "—")</td>
+                                    <td class="text-center">
+                                        @if (p.IsActive)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3 text-nowrap">
+                                        @if (deletingId == p.ProviderId)
+                                        {
+                                            <span class="text-danger small me-1">Delete?</span>
+                                            <button class="btn btn-sm btn-danger me-1" @onclick="() => DeleteProvider(p.ProviderId)">Yes</button>
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => deletingId = null">No</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenEditModal(p)">Edit</button>
+                                            <button class="btn btn-sm @(p.IsActive ? "btn-outline-warning" : "btn-outline-success") me-1"
+                                                    @onclick="() => ToggleActive(p.ProviderId)">
+                                                @(p.IsActive ? "Deactivate" : "Activate")
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => deletingId = p.ProviderId">Delete</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-2 text-muted small border-top">
+                    Showing @rows.Count of @providers.Count providers
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Add / Edit Modal -->
+@if (showModal)
+{
+    <div class="modal-backdrop-custom" @onclick="CloseModal"></div>
+    <div class="modal-panel-custom">
+        <div class="modal-panel-header">
+            <h5 class="mb-0">@(isEditing ? "Edit Provider" : "Add Provider")</h5>
+            <button class="btn-close" @onclick="CloseModal"></button>
+        </div>
+        <div class="modal-panel-body">
+
+            @if (formError is not null)
+            {
+                <div class="alert alert-danger py-2 small">@formError</div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Provider Name <span class="text-danger">*</span></label>
+                <input class="form-control" @bind="form.ProviderName" placeholder="e.g. Pharmacie Centrale" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+                <select class="form-select" @bind="form.ProviderType">
+                    @foreach (var t in Enum.GetValues<ProviderType>())
+                    {
+                        <option value="@t">@t</option>
+                    }
+                </select>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input class="form-control" @bind="form.Phone" placeholder="+225 00 00 00 00" />
+                </div>
+                <div class="col-6">
+                    <label class="form-label fw-semibold">Payment Method</label>
+                    <input class="form-control" @bind="form.PaymentMethod" placeholder="Mobile Money / Bank" />
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label fw-semibold">Mobile Money Number</label>
+                    <input class="form-control" @bind="form.MobileMoneyNumber" placeholder="+225 07 00 00 00" />
+                </div>
+                <div class="col-6">
+                    <label class="form-label fw-semibold">Bank Account Number</label>
+                    <input class="form-control" @bind="form.BankAccountNumber" placeholder="CI00X..." />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Address</label>
+                <textarea class="form-control" rows="2" @bind="form.Address" placeholder="Street, City, Country"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="isActive" @bind="form.IsActive" />
+                    <label class="form-check-label fw-semibold" for="isActive">Active</label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-panel-footer">
+            <button class="btn btn-outline-secondary" @onclick="CloseModal">Cancel</button>
+            <button class="btn btn-primary" @onclick="SaveProvider" disabled="@isSaving">
+                @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                @(isEditing ? "Save Changes" : "Add Provider")
+            </button>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-backdrop-custom {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 1040;
+    }
+    .modal-panel-custom {
+        position: fixed; top: 0; right: 0; bottom: 0;
+        width: 480px; max-width: 100%;
+        background: #fff;
+        z-index: 1050;
+        display: flex; flex-direction: column;
+        box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+    }
+    .modal-panel-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+    }
+    .modal-panel-body {
+        flex: 1; overflow-y: auto;
+        padding: 1.5rem;
+    }
+    .modal-panel-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex; justify-content: flex-end; gap: 0.5rem;
+    }
+    .stat-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1) !important; }
+</style>
+
+@code {
+    private List<Provider> providers = new();
+    private ProviderType? filterType;
+    private string searchTerm = "";
+    private bool showInactive = true;
+    private bool showModal;
+    private bool isEditing;
+    private bool isSaving;
+    private Guid? deletingId;
+    private string? successMessage;
+    private string? errorMessage;
+    private string? formError;
+
+    private ProviderForm form = new();
+
+    private static readonly (ProviderType Type, string Color, string Icon)[] StatTypes = new[]
+    {
+        (ProviderType.Pharmacy, "#198754", "🏥"),
+        (ProviderType.School,   "#0d6efd", "🏫"),
+        (ProviderType.Clinic,   "#0dcaf0", "🩺"),
+        (ProviderType.Utility,  "#ffc107", "💡"),
+    };
+
+    protected override async Task OnInitializedAsync() => await LoadProviders();
+
+    private async Task LoadProviders()
+    {
+        providers = await Db.Providers.OrderBy(p => p.ProviderName).ToListAsync();
+    }
+
+    private IEnumerable<Provider> FilteredProviders =>
+        providers
+            .Where(p => filterType == null || p.ProviderType == filterType)
+            .Where(p => showInactive || p.IsActive)
+            .Where(p => string.IsNullOrWhiteSpace(searchTerm) ||
+                        p.ProviderName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                        (p.Phone != null && p.Phone.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+
+    private void SetFilter(ProviderType? type)
+    {
+        filterType = filterType == type ? null : type;
+    }
+
+    private void OpenAddModal()
+    {
+        form = new ProviderForm { IsActive = true };
+        isEditing = false;
+        formError = null;
+        showModal = true;
+    }
+
+    private void OpenEditModal(Provider p)
+    {
+        form = new ProviderForm
+        {
+            ProviderId = p.ProviderId,
+            ProviderName = p.ProviderName,
+            ProviderType = p.ProviderType,
+            Phone = p.Phone,
+            Address = p.Address,
+            PaymentMethod = p.PaymentMethod,
+            MobileMoneyNumber = p.MobileMoneyNumber,
+            BankAccountNumber = p.BankAccountNumber,
+            IsActive = p.IsActive
+        };
+        isEditing = true;
+        formError = null;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        formError = null;
+    }
+
+    private async Task SaveProvider()
+    {
+        if (string.IsNullOrWhiteSpace(form.ProviderName))
+        {
+            formError = "Provider name is required.";
+            return;
+        }
+
+        isSaving = true;
+        formError = null;
+
+        try
+        {
+            if (isEditing)
+            {
+                var existing = await Db.Providers.FindAsync(form.ProviderId);
+                if (existing is null) { formError = "Provider not found."; return; }
+                existing.ProviderName = form.ProviderName.Trim();
+                existing.ProviderType = form.ProviderType;
+                existing.Phone = form.Phone?.Trim();
+                existing.Address = form.Address?.Trim();
+                existing.PaymentMethod = form.PaymentMethod?.Trim();
+                existing.MobileMoneyNumber = form.MobileMoneyNumber?.Trim();
+                existing.BankAccountNumber = form.BankAccountNumber?.Trim();
+                existing.IsActive = form.IsActive;
+                existing.UpdatedAt = DateTime.UtcNow;
+                successMessage = $"'{existing.ProviderName}' updated.";
+            }
+            else
+            {
+                var provider = new Provider
+                {
+                    ProviderName = form.ProviderName.Trim(),
+                    ProviderType = form.ProviderType,
+                    Phone = form.Phone?.Trim(),
+                    Address = form.Address?.Trim(),
+                    PaymentMethod = form.PaymentMethod?.Trim(),
+                    MobileMoneyNumber = form.MobileMoneyNumber?.Trim(),
+                    BankAccountNumber = form.BankAccountNumber?.Trim(),
+                    IsActive = form.IsActive
+                };
+                Db.Providers.Add(provider);
+                successMessage = $"'{provider.ProviderName}' added.";
+            }
+
+            await Db.SaveChangesAsync();
+            showModal = false;
+            errorMessage = null;
+            await LoadProviders();
+        }
+        catch (Exception ex)
+        {
+            formError = $"Error saving: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ToggleActive(Guid id)
+    {
+        var p = await Db.Providers.FindAsync(id);
+        if (p is null) return;
+        p.IsActive = !p.IsActive;
+        p.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        var status = p.IsActive ? "activated" : "deactivated";
+        successMessage = $"'{p.ProviderName}' {status}.";
+        errorMessage = null;
+        await LoadProviders();
+    }
+
+    private async Task DeleteProvider(Guid id)
+    {
+        var p = await Db.Providers.FindAsync(id);
+        if (p is null) return;
+        var name = p.ProviderName;
+        Db.Providers.Remove(p);
+        await Db.SaveChangesAsync();
+        deletingId = null;
+        successMessage = $"'{name}' deleted.";
+        errorMessage = null;
+        await LoadProviders();
+    }
+
+    private static string TypeBadge(ProviderType t) => t switch
+    {
+        ProviderType.Pharmacy => "bg-success-subtle text-success border border-success-subtle",
+        ProviderType.School   => "bg-primary-subtle text-primary border border-primary-subtle",
+        ProviderType.Clinic   => "bg-info-subtle text-info border border-info-subtle",
+        ProviderType.Utility  => "bg-warning-subtle text-warning border border-warning-subtle",
+        _                     => "bg-secondary-subtle text-secondary"
+    };
+
+    private sealed class ProviderForm
+    {
+        public Guid ProviderId { get; set; }
+        public string ProviderName { get; set; } = "";
+        public ProviderType ProviderType { get; set; } = ProviderType.Pharmacy;
+        public string? Phone { get; set; }
+        public string? Address { get; set; }
+        public string? PaymentMethod { get; set; }
+        public string? MobileMoneyNumber { get; set; }
+        public string? BankAccountNumber { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}

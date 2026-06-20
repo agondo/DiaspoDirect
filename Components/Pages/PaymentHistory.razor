@@ -1,0 +1,140 @@
+@page "/payment-history"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using DiaspoDirect.Data
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IJSRuntime JS
+
+<PageTitle>Payment History</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Payment History</h2>
+            <p class="text-muted mb-0">@payments.Count @(payments.Count == 1 ? "payment" : "payments")</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (payments.Count == 0)
+            {
+                <div class="text-center py-5 text-muted">
+                    <p class="mb-1 fs-5">No payments found.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Date</th>
+                                <th>Prescription</th>
+                                <th>Amount (USD)</th>
+                                <th>Stripe Session</th>
+                                <th class="text-center">Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in payments)
+                            {
+                                <tr>
+                                    <td class="ps-3 text-nowrap">
+                                        <span class="text-muted small">@p.CreatedAt.ToString("yyyy-MM-dd")</span>
+                                        <div class="text-muted small">@p.CreatedAt.ToString("HH:mm") UTC</div>
+                                    </td>
+                                    <td>
+                                        @if (p.Prescription is not null)
+                                        {
+                                            <div class="fw-semibold small">@(p.Prescription.RecipientFirstLastName ?? $"{p.Prescription.FirstName} {p.Prescription.LastName}")</div>
+                                            <div class="text-muted small">@p.Prescription.CountryName &mdash; @p.Prescription.AmountCFA.ToString("N0") CFA</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">—</span>
+                                        }
+                                    </td>
+                                    <td class="fw-semibold text-nowrap">$@p.AmountUsd.ToString("F2")</td>
+                                    <td>
+                                        <span class="text-muted small font-monospace">@p.StripeSessionId[..20]…</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (p.Status == "Paid")
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary rounded-pill" @onclick="() => GenerateReceipt(p)">paidUSA/Details</button>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">@p.Status</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Payment> payments = [];
+    private Dictionary<Guid, string> payorNames = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var isAdmin = auth.User.IsInRole("Admin");
+        var email = auth.User.Identity?.Name;
+        var user = email is not null ? await UserManager.FindByNameAsync(email) : null;
+
+        if (isAdmin)
+        {
+            payments = await Db.Payments
+                .Include(p => p.Prescription)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            foreach (var uid in payments.Select(p => p.UserId).Distinct())
+            {
+                var u = await UserManager.FindByIdAsync(uid);
+                var name = u is not null ? $"{u.FirstName} {u.LastName}".Trim() : "";
+                if (string.IsNullOrWhiteSpace(name)) name = u?.Email ?? uid;
+                foreach (var p in payments.Where(p => p.UserId == uid))
+                    payorNames[p.Id] = name;
+            }
+        }
+        else if (user is not null)
+        {
+            payments = await Db.Payments
+                .Include(p => p.Prescription)
+                .Where(p => p.UserId == user.Id)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            var name = $"{user.FirstName} {user.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(name)) name = email ?? "Unknown";
+            foreach (var p in payments)
+                payorNames[p.Id] = name;
+        }
+    }
+
+    private async Task GenerateReceipt(Payment p)
+    {
+        payorNames.TryGetValue(p.Id, out var name);
+        await JS.InvokeVoidAsync("generateReceiptPdf",
+            p.CreatedAt.ToString("yyyy-MM-dd HH:mm") + " UTC",
+            name ?? "Unknown",
+            p.AmountUsd.ToString("F2"),
+            p.Id.ToString());
+    }
+}

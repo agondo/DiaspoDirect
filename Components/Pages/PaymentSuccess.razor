@@ -1,0 +1,71 @@
+@page "/payment-success"
+@using DiaspoDirect.Services
+@using Stripe.Checkout
+@inject StripeCheckoutService StripeCheckout
+@inject NavigationManager Nav
+
+<PageTitle>Payment Successful</PageTitle>
+
+<div class="container py-5">
+    @if (isProcessing)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-success mb-3" role="status"></div>
+            <p class="text-muted">Confirming your payment...</p>
+        </div>
+    }
+    else if (errorMessage is not null)
+    {
+        <div class="alert alert-warning">
+            <h3>Payment Received</h3>
+            <p>Your payment was processed by Stripe, but we had trouble updating your prescription status. Please contact support if it doesn't update shortly.</p>
+            <p class="small text-muted">@errorMessage</p>
+        </div>
+        <a href="/my-prescriptions" class="btn btn-primary">Back to My Prescriptions</a>
+    }
+    else
+    {
+        <div class="alert alert-success">
+            <h3>Payment Successful</h3>
+            <p>Your DiaspoDirect prescription payment was received. Your prescription status has been updated.</p>
+        </div>
+        <a href="/my-prescriptions" class="btn btn-primary">Back to My Prescriptions</a>
+    }
+</div>
+
+@code {
+    private bool isProcessing = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(Nav.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var sessionId = query["session_id"];
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            isProcessing = false;
+            return;
+        }
+
+        try
+        {
+            var service = new SessionService();
+            var session = await service.GetAsync(sessionId);
+
+            if (session.PaymentStatus == "paid")
+            {
+                await StripeCheckout.MarkPaidAsync(session.Id, session.PaymentIntentId);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

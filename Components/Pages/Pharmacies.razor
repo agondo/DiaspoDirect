@@ -1,0 +1,350 @@
+@page "/pharmacies"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using DiaspoDirect.Data
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Pharmacies</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Pharmacies</h2>
+            <p class="text-muted mb-0">@pharmacies.Count @(pharmacies.Count == 1 ? "pharmacy" : "pharmacies") registered</p>
+        </div>
+        @if (isAdmin)
+        {
+            <button class="btn btn-primary" @onclick="() => OpenForm(null)">+ New Pharmacy</button>
+        }
+    </div>
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    @if (showForm && isAdmin)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">@(formModel.Id == Guid.Empty ? "New Pharmacy" : "Edit Pharmacy")</h5>
+                <button type="button" class="btn-close" @onclick="CloseForm"></button>
+            </div>
+            <div class="card-body">
+                <EditForm Model="formModel" OnValidSubmit="SavePharmacy" FormName="save-pharmacy">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="formModel.Name" class="form-control" placeholder="Pharmacy name" />
+                            <ValidationMessage For="() => formModel.Name" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">License Number</label>
+                            <InputText @bind-Value="formModel.LicenseNumber" class="form-control" placeholder="e.g. PH-2024-001" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Contact Person</label>
+                            <InputText @bind-Value="formModel.ContactPerson" class="form-control" placeholder="Full name" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Phone Number</label>
+                            <InputText @bind-Value="formModel.PhoneNumber" class="form-control" placeholder="+1 234 567 890" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Email</label>
+                            <InputText @bind-Value="formModel.Email" class="form-control" placeholder="pharmacy@example.com" />
+                            <ValidationMessage For="() => formModel.Email" class="text-danger small" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">City</label>
+                            <InputText @bind-Value="formModel.City" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Country</label>
+                            <InputSelect @bind-Value="formModel.Country" class="form-select">
+                                <option value="">-- Select Country --</option>
+                                <option value="United States">United States</option>
+                                <option value="Ivory Coast">Ivory Coast</option>
+                                <option value="Senegal">Senegal</option>
+                                <option value="Mali">Mali</option>
+                                <option value="Burkina Faso">Burkina Faso</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Address</label>
+                            <InputTextArea @bind-Value="formModel.Address" class="form-control" rows="2" placeholder="Street address" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Latitude</label>
+                            <InputNumber @bind-Value="formModel.Latitude" class="form-control" placeholder="e.g. 48.8566" />
+                            <ValidationMessage For="() => formModel.Latitude" class="text-danger small" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Longitude</label>
+                            <InputNumber @bind-Value="formModel.Longitude" class="form-control" placeholder="e.g. 2.3522" />
+                            <ValidationMessage For="() => formModel.Longitude" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end pb-1">
+                            <div class="form-check">
+                                <InputCheckbox @bind-Value="formModel.IsActive" class="form-check-input" id="chkActive" />
+                                <label class="form-check-label fw-semibold" for="chkActive">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4">
+                            @(formModel.Id == Guid.Empty ? "Create Pharmacy" : "Save Changes")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseForm">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @if (deletingId != null)
+    {
+        <div class="alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+            <span>Delete <strong>@deletingName</strong>? This action cannot be undone.</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-danger" @onclick="ConfirmDelete">Yes, delete</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => deletingId = null">Cancel</button>
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (pharmacies.Count == 0)
+            {
+                <div class="text-center py-5 text-muted">
+                    <p class="mb-1 fs-5">No pharmacies registered yet.</p>
+                    @if (isAdmin)
+                    {
+                        <p class="small">Click <strong>New Pharmacy</strong> to add one.</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Name</th>
+                                <th>License</th>
+                                <th>Contact</th>
+                                <th>City</th>
+                                <th>Country</th>
+                                <th>Phone</th>
+                                <th class="text-center">Status</th>
+                                @if (isAdmin)
+                                {
+                                    <th class="text-end pe-3">Actions</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in pharmacies)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-semibold">@p.Name</div>
+                                        @if (!string.IsNullOrEmpty(p.Email))
+                                        {
+                                            <div class="text-muted small">@p.Email</div>
+                                        }
+                                    </td>
+                                    <td class="text-muted">@(p.LicenseNumber ?? "—")</td>
+                                    <td>@(p.ContactPerson ?? "—")</td>
+                                    <td>@(p.City ?? "—")</td>
+                                    <td>@(p.Country ?? "—")</td>
+                                    <td>@(p.PhoneNumber ?? "—")</td>
+                                    <td class="text-center">
+                                        @if (p.IsActive)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                        }
+                                    </td>
+                                    @if (isAdmin)
+                                    {
+                                        <td class="text-end pe-3">
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenForm(p)">Edit</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => AskDelete(p)">Delete</button>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Pharmacy> pharmacies = [];
+    private PharmacyFormModel formModel = new();
+    private bool showForm;
+    private bool isAdmin;
+    private Guid? deletingId;
+    private string? deletingName;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAdmin = auth.User.IsInRole("Admin");
+        await LoadPharmacies();
+    }
+
+    private async Task LoadPharmacies()
+        => pharmacies = await Db.Pharmacies.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
+
+    private void OpenForm(Pharmacy? pharmacy)
+    {
+        deletingId = null;
+        formModel = pharmacy is null
+            ? new PharmacyFormModel { IsActive = true }
+            : new PharmacyFormModel
+            {
+                Id             = pharmacy.Id,
+                Name           = pharmacy.Name,
+                LicenseNumber  = pharmacy.LicenseNumber,
+                ContactPerson  = pharmacy.ContactPerson,
+                PhoneNumber    = pharmacy.PhoneNumber,
+                Email          = pharmacy.Email,
+                Address        = pharmacy.Address,
+                City           = pharmacy.City,
+                Country        = pharmacy.Country,
+                Latitude       = pharmacy.Latitude,
+                Longitude      = pharmacy.Longitude,
+                IsActive       = pharmacy.IsActive
+            };
+        showForm = true;
+    }
+
+    private void CloseForm() => showForm = false;
+
+    private async Task SavePharmacy()
+    {
+        if (formModel.Id == Guid.Empty)
+        {
+            Db.Pharmacies.Add(new Pharmacy
+            {
+                Name          = formModel.Name,
+                LicenseNumber = formModel.LicenseNumber,
+                ContactPerson = formModel.ContactPerson,
+                PhoneNumber   = formModel.PhoneNumber,
+                Email         = formModel.Email,
+                Address       = formModel.Address,
+                City          = formModel.City,
+                Country       = formModel.Country,
+                Latitude      = formModel.Latitude,
+                Longitude     = formModel.Longitude,
+                IsActive      = formModel.IsActive,
+                CreatedAt     = DateTime.UtcNow,
+                UpdatedAt     = DateTime.UtcNow
+            });
+            successMessage = $"Pharmacy \"{formModel.Name}\" created successfully.";
+        }
+        else
+        {
+            var existing = await Db.Pharmacies.FindAsync(formModel.Id);
+            if (existing is not null)
+            {
+                existing.Name          = formModel.Name;
+                existing.LicenseNumber = formModel.LicenseNumber;
+                existing.ContactPerson = formModel.ContactPerson;
+                existing.PhoneNumber   = formModel.PhoneNumber;
+                existing.Email         = formModel.Email;
+                existing.Address       = formModel.Address;
+                existing.City          = formModel.City;
+                existing.Country       = formModel.Country;
+                existing.Latitude      = formModel.Latitude;
+                existing.Longitude     = formModel.Longitude;
+                existing.IsActive      = formModel.IsActive;
+                existing.UpdatedAt     = DateTime.UtcNow;
+            }
+            successMessage = $"Pharmacy \"{formModel.Name}\" updated successfully.";
+        }
+
+        await Db.SaveChangesAsync();
+        Db.ChangeTracker.Clear();
+        showForm = false;
+        await LoadPharmacies();
+    }
+
+    private void AskDelete(Pharmacy p)
+    {
+        showForm = false;
+        deletingId   = p.Id;
+        deletingName = p.Name;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (deletingId is null) return;
+        var p = await Db.Pharmacies.FindAsync(deletingId.Value);
+        if (p is not null)
+        {
+            Db.Pharmacies.Remove(p);
+            await Db.SaveChangesAsync();
+            Db.ChangeTracker.Clear();
+            successMessage = $"Pharmacy \"{p.Name}\" deleted.";
+        }
+        deletingId = null;
+        await LoadPharmacies();
+    }
+
+    private sealed class PharmacyFormModel
+    {
+        public Guid Id { get; set; } = Guid.Empty;
+
+        [Required(ErrorMessage = "Name is required."), MaxLength(200)]
+        public string Name { get; set; } = "";
+
+        [MaxLength(100)]
+        public string? LicenseNumber { get; set; }
+
+        [MaxLength(150)]
+        public string? ContactPerson { get; set; }
+
+        [MaxLength(50)]
+        public string? PhoneNumber { get; set; }
+
+        [MaxLength(255), EmailAddress(ErrorMessage = "Invalid email address.")]
+        public string? Email { get; set; }
+
+        public string? Address { get; set; }
+
+        [MaxLength(100)]
+        public string? City { get; set; }
+
+        [MaxLength(100)]
+        public string? Country { get; set; }
+
+        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90.")]
+        public decimal? Latitude { get; set; }
+
+        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180.")]
+        public decimal? Longitude { get; set; }
+
+        public bool IsActive { get; set; } = true;
+    }
+}

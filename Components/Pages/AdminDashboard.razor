@@ -1,0 +1,443 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using DiaspoDirect.Data
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject ApplicationDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Admin Dashboard</h2>
+            <p class="text-muted mb-0">Welcome back, <strong>@adminEmail</strong></p>
+        </div>
+        <span class="badge bg-danger fs-6 px-3 py-2">Administrator</span>
+    </div>
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success alert-dismissible mb-4" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible mb-4" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <a href="#users-section" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#1b6ec2" viewBox="0 0 16 16">
+                                <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+                                <path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/>
+                                <path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Total Users</p>
+                            <h3 class="mb-0 fw-bold">@totalUsers</h3>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="#roles-section" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#198754" viewBox="0 0 16 16">
+                                <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Roles</p>
+                            <h3 class="mb-0 fw-bold">@totalRoles</h3>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="#users-section" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#ffc107" viewBox="0 0 16 16">
+                                <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Confirmed Emails</p>
+                            <h3 class="mb-0 fw-bold">@confirmedEmails</h3>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="my-prescriptions" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#0dcaf0" viewBox="0 0 16 16">
+                                <path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/>
+                                <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Prescriptions</p>
+                            <h3 class="mb-0 fw-bold">@totalPrescriptions</h3>
+                            @if (pendingPrescriptions > 0)
+                            {
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle small">@pendingPrescriptions pending</span>
+                            }
+                            <div class="text-muted small mt-1" style="cursor:pointer;"
+                                 @onclick="GoToSendPrescriptions"
+                                 @onclick:stopPropagation="true">
+                                @totalSendPrescriptions sent@(pendingSendPrescriptions > 0 ? $" · {pendingSendPrescriptions} pending" : "") ›
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="pharmacies" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#198754" viewBox="0 0 16 16">
+                                <path d="M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm-3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm-5 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1z"/>
+                                <path d="M2 1.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5V5h.5a.5.5 0 0 1 0 1H14v1.5h.5a.5.5 0 0 1 0 1H14V15h.5a.5.5 0 0 1 0 1H1.5a.5.5 0 0 1 0-1H2V8.5h-.5a.5.5 0 0 1 0-1H2V6h-.5a.5.5 0 0 1 0-1H2V1.5zM3 6v2.5h10V6H3zm10 3.5H3V15h4v-3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v3h4V9.5zM13 5V2H3v3h10z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Pharmacies</p>
+                            <h3 class="mb-0 fw-bold">@totalPharmacies</h3>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="admin/providers" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#198754" viewBox="0 0 16 16">
+                                <path d="M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1zm3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-3.5zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Providers</p>
+                            <h3 class="mb-0 fw-bold">@totalProviders</h3>
+                            @if (activeProviders > 0)
+                            {
+                                <span class="text-success small">@activeProviders active</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="admin/exchange-rates" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#ffc107" viewBox="0 0 16 16">
+                                <path d="M1 2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm1 3v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5H2zm3 1h2v1H5V6zm0 2h2v1H5V8zm0 2h2v1H5v-1zm3-4h3v1H8V6zm0 2h3v1H8V8zm0 2h3v1H8v-1z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Exchange Rates</p>
+                            <h3 class="mb-0 fw-bold">@totalExchangeRates</h3>
+                            @if (latestRate is not null)
+                            {
+                                <span class="text-muted small">Latest: @latestRate.DiaspoDirectRate.ToString("N2") on @latestRate.RateDate.ToString("MMM dd")</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <a href="send-prescriptions" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#1b6ec2" viewBox="0 0 16 16">
+                                <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-muted small mb-0">Send Prescriptions</p>
+                            <h3 class="mb-0 fw-bold">@totalSendPrescriptions</h3>
+                            @if (pendingSendPrescriptions > 0)
+                            {
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle small">@pendingSendPrescriptions pending</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div id="users-section" class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-semibold">Registered Users</h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (users.Count == 0)
+                    {
+                        <p class="text-muted p-3 mb-0">No users found.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-3">Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th class="text-center">Email Confirmed</th>
+                                        <th>Roles</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-end pe-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var u in users)
+                                    {
+                                        <tr class="@(u.IsLockedOut ? "table-warning" : "")">
+                                            <td class="ps-3">
+                                                <div class="fw-semibold">@($"{u.FirstName} {u.LastName}".Trim())</div>
+                                            </td>
+                                            <td class="small text-muted">@u.Email</td>
+                                            <td class="small text-muted">@(u.PhoneNumber ?? "—")</td>
+                                            <td class="text-center">
+                                                @if (u.EmailConfirmed)
+                                                {
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Confirmed</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Pending</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @foreach (var role in u.Roles)
+                                                {
+                                                    <span class="badge bg-primary me-1">@role</span>
+                                                }
+                                                @if (!u.Roles.Any())
+                                                {
+                                                    <span class="text-muted small">—</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (u.IsLockedOut)
+                                                {
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Deactivated</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                                }
+                                            </td>
+                                            <td class="text-end pe-3 text-nowrap">
+                                                @if (u.Email == adminEmail)
+                                                {
+                                                    <span class="text-muted small">—</span>
+                                                }
+                                                else if (deletingUserId == u.Id)
+                                                {
+                                                    <span class="text-danger small me-1">Delete?</span>
+                                                    <button class="btn btn-sm btn-danger me-1" @onclick="DeleteUser">Yes</button>
+                                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => deletingUserId = null">No</button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm @(u.IsLockedOut ? "btn-outline-success" : "btn-outline-warning") me-1"
+                                                            @onclick="() => ToggleLockout(u.Id)">
+                                                        @(u.IsLockedOut ? "Activate" : "Deactivate")
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteUser(u.Id)">Delete</button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-semibold">Quick Actions</h5>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <a href="Account/Register" class="btn btn-primary">Register New User</a>
+                    <a href="my-prescriptions" class="btn btn-outline-primary">My Prescriptions</a>
+                    <a href="send-prescriptions" class="btn btn-outline-primary">Send Prescriptions</a>
+                    <a href="pharmacies" class="btn btn-outline-primary">Pharmacies</a>
+                    <a href="admin/providers" class="btn btn-outline-primary">Providers</a>
+                    <a href="admin/exchange-rates" class="btn btn-outline-primary">Exchange Rates</a>
+                    <a href="Account/Manage" class="btn btn-outline-secondary">Manage My Account</a>
+                    <a href="Account/Manage/ChangePassword" class="btn btn-outline-secondary">Change Password</a>
+                </div>
+            </div>
+
+            <div id="roles-section" class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-semibold">Available Roles</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    @foreach (var role in roles)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @role
+                            <span class="badge bg-primary rounded-pill">
+                                @usersByRole.GetValueOrDefault(role, 0)
+                            </span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void GoToSendPrescriptions() => Nav.NavigateTo("send-prescriptions");
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string adminEmail = "";
+    private int totalUsers;
+    private int totalRoles;
+    private int confirmedEmails;
+    private int totalPrescriptions;
+    private int pendingPrescriptions;
+    private int totalPharmacies;
+    private int totalExchangeRates;
+    private ExchangeRate? latestRate;
+    private int totalSendPrescriptions;
+    private int pendingSendPrescriptions;
+    private int totalProviders;
+    private int activeProviders;
+    private List<UserRow> users = [];
+    private List<string> roles = [];
+    private Dictionary<string, int> usersByRole = [];
+    private string? deletingUserId;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationState;
+        adminEmail = auth.User.Identity?.Name ?? "";
+
+        totalPrescriptions = await Db.MyPrescriptions.CountAsync();
+        pendingPrescriptions = await Db.MyPrescriptions.CountAsync(r => r.Status == "Pending");
+        totalPharmacies = await Db.Pharmacies.CountAsync();
+        totalExchangeRates = await Db.ExchangeRates.CountAsync();
+        latestRate = await Db.ExchangeRates.OrderByDescending(r => r.RateDate).FirstOrDefaultAsync();
+        totalSendPrescriptions = await Db.SendPrescriptions.CountAsync();
+        pendingSendPrescriptions = await Db.SendPrescriptions.CountAsync(r => r.Status == "Pending");
+        totalProviders = await Db.Providers.CountAsync();
+        activeProviders = await Db.Providers.CountAsync(p => p.IsActive);
+
+        roles = RoleManager.Roles.Select(r => r.Name!).OrderBy(r => r).ToList();
+        totalRoles = roles.Count;
+        await ReloadUsers();
+    }
+
+    private async Task ReloadUsers()
+    {
+        users = [];
+        usersByRole = [];
+        var allUsers = UserManager.Users.ToList();
+        totalUsers = allUsers.Count;
+        confirmedEmails = allUsers.Count(u => u.EmailConfirmed);
+        foreach (var u in allUsers)
+        {
+            var userRoles = (await UserManager.GetRolesAsync(u)).ToList();
+            var isLockedOut = u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow;
+            users.Add(new UserRow(u.Id, u.Email ?? u.UserName ?? "", u.FirstName, u.LastName, u.PhoneNumber, u.EmailConfirmed, userRoles, isLockedOut));
+            foreach (var role in userRoles)
+                usersByRole[role] = usersByRole.GetValueOrDefault(role, 0) + 1;
+        }
+    }
+
+    private async Task ToggleLockout(string userId)
+    {
+        var user = await UserManager.FindByIdAsync(userId);
+        if (user is null) return;
+        if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow)
+        {
+            await UserManager.SetLockoutEndDateAsync(user, null);
+            successMessage = $"User {user.Email} has been activated.";
+        }
+        else
+        {
+            await UserManager.SetLockoutEnabledAsync(user, true);
+            await UserManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            successMessage = $"User {user.Email} has been deactivated.";
+        }
+        errorMessage = null;
+        await ReloadUsers();
+    }
+
+    private void ConfirmDeleteUser(string userId)
+    {
+        deletingUserId = userId;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task DeleteUser()
+    {
+        if (deletingUserId is null) return;
+        var user = await UserManager.FindByIdAsync(deletingUserId);
+        if (user is not null)
+        {
+            var result = await UserManager.DeleteAsync(user);
+            if (result.Succeeded)
+                successMessage = $"User {user.Email} has been deleted.";
+            else
+                errorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
+        }
+        deletingUserId = null;
+        await ReloadUsers();
+    }
+
+    private sealed record UserRow(string Id, string Email, string? FirstName, string? LastName, string? PhoneNumber, bool EmailConfirmed, List<string> Roles, bool IsLockedOut);
+}
