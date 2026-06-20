@@ -26,5 +26,9 @@ public class Payment
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public bool IsPaidToProvider { get; set; }
+    public DateTime? PaidToProviderAt { get; set; }
+    public string? ProviderPaymentReference { get; set; }
+
     public SendPrescription Prescription { get; set; } = null!;
 }
