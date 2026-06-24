@@ -3,28 +3,47 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DiaspoDirect.Data;
 
+public enum ProviderPaymentMethod
+{
+    Wave,
+    Orange,
+    Cash
+}
+
+public enum ProviderPaymentStatus
+{
+    Pending,
+    Paid,
+    Failed
+}
+
 public class ProviderPayment
 {
     [Key]
-    public Guid ProviderPaymentId { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid PaymentId { get; set; }
 
     public Guid ProviderId { get; set; }
 
-    public Guid PrescriptionId { get; set; }
-
     [Column(TypeName = "numeric(18,2)")]
-    public decimal AmountCFA { get; set; }
+    public decimal AmountXOF { get; set; }
 
-    public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
-
-    [MaxLength(100)]
-    public string? PaymentMethod { get; set; }
+    public ProviderPaymentMethod PaymentMethod { get; set; }
 
     [MaxLength(100)]
     public string? ReferenceNumber { get; set; }
 
-    [Required, MaxLength(50)]
-    public string Status { get; set; } = "Pending";
+    public string? PaidBy { get; set; }
 
+    public DateTime? PaidAt { get; set; }
+
+    public ProviderPaymentStatus Status { get; set; } = ProviderPaymentStatus.Pending;
+
+    [MaxLength(500)]
+    public string? ReceiptUrl { get; set; }
+
+    public Payment Payment { get; set; } = null!;
     public Provider Provider { get; set; } = null!;
+    public ApplicationUser? PaidByUser { get; set; }
 }

@@ -1,11 +1,14 @@
 @page "/admin/provider-payments"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using DiaspoDirect.Data
+@using System.Security.Claims
 @attribute [Authorize(Roles = "Admin")]
 @rendermode InteractiveServer
 
 @inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>Provider Payments — Admin</PageTitle>
 
@@ -59,14 +62,30 @@
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-secondary bg-opacity-10 p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#6c757d" viewBox="0 0 16 16">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                            <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-muted small mb-0">No Provider</p>
+                        <h3 class="mb-0 fw-bold text-secondary">@rows.Count(r => r.ProviderPaymentId is null)</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-warning bg-opacity-10 p-3">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#ffc107" viewBox="0 0 16 16">
                             <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
                         </svg>
                     </div>
                     <div>
-                        <p class="text-muted small mb-0">Awaiting Provider</p>
-                        <h3 class="mb-0 fw-bold text-warning">@rows.Count(r => !r.IsPaidToProvider)</h3>
+                        <p class="text-muted small mb-0">Awaiting Payment</p>
+                        <h3 class="mb-0 fw-bold text-warning">@rows.Count(r => r.ProviderStatus == ProviderPaymentStatus.Pending)</h3>
                     </div>
                 </div>
             </div>
@@ -81,22 +100,7 @@
                     </div>
                     <div>
                         <p class="text-muted small mb-0">Paid to Provider</p>
-                        <h3 class="mb-0 fw-bold text-success">@rows.Count(r => r.IsPaidToProvider)</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-info bg-opacity-10 p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#0dcaf0" viewBox="0 0 16 16">
-                            <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.051zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-muted small mb-0">Total USD Collected</p>
-                        <h3 class="mb-0 fw-bold">$@rows.Sum(r => r.AmountUsd).ToString("N2")</h3>
+                        <h3 class="mb-0 fw-bold text-success">@rows.Count(r => r.ProviderStatus == ProviderPaymentStatus.Paid)</h3>
                     </div>
                 </div>
             </div>
@@ -108,8 +112,8 @@
         <div class="card-body py-2 d-flex align-items-center gap-2 flex-wrap">
             <span class="text-muted small fw-semibold me-1">Show:</span>
             <button class="btn btn-sm @(filter == "all"     ? "btn-primary"          : "btn-outline-secondary")" @onclick='() => filter = "all"'>All (@rows.Count)</button>
-            <button class="btn btn-sm @(filter == "pending" ? "btn-warning"          : "btn-outline-secondary")" @onclick='() => filter = "pending"'>Awaiting (@rows.Count(r => !r.IsPaidToProvider))</button>
-            <button class="btn btn-sm @(filter == "paid"    ? "btn-success"          : "btn-outline-secondary")" @onclick='() => filter = "paid"'>Paid to Provider (@rows.Count(r => r.IsPaidToProvider))</button>
+            <button class="btn btn-sm @(filter == "pending" ? "btn-warning"          : "btn-outline-secondary")" @onclick='() => filter = "pending"'>Unpaid (@rows.Count(r => r.ProviderStatus != ProviderPaymentStatus.Paid))</button>
+            <button class="btn btn-sm @(filter == "paid"    ? "btn-success"          : "btn-outline-secondary")" @onclick='() => filter = "paid"'>Paid to Provider (@rows.Count(r => r.ProviderStatus == ProviderPaymentStatus.Paid))</button>
         </div>
     </div>
 
@@ -119,8 +123,8 @@
             @{
                 var filtered = filter switch
                 {
-                    "pending" => rows.Where(r => !r.IsPaidToProvider).ToList(),
-                    "paid"    => rows.Where(r => r.IsPaidToProvider).ToList(),
+                    "pending" => rows.Where(r => r.ProviderStatus != ProviderPaymentStatus.Paid).ToList(),
+                    "paid"    => rows.Where(r => r.ProviderStatus == ProviderPaymentStatus.Paid).ToList(),
                     _         => rows
                 };
             }
@@ -139,11 +143,11 @@
                             <tr>
                                 <th class="ps-3">Prescription</th>
                                 <th>Recipient</th>
-                                <th>Pharmacy</th>
-                                <th class="text-end">Amount CFA</th>
+                                <th>Provider</th>
+                                <th class="text-end">Amount XOF</th>
                                 <th class="text-end">Amount USD</th>
                                 <th class="text-center">Status</th>
-                                <th class="text-center pe-3">Mark Paid</th>
+                                <th class="text-center pe-3">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -172,30 +176,42 @@
                                             <button class="btn btn-sm btn-outline-primary btn-sm" @onclick="() => OpenAssign(r)">Assign</button>
                                         }
                                     </td>
-                                    <td class="text-end small">@r.AmountCFA.ToString("N0") CFA</td>
+                                    <td class="text-end small">@r.AmountCFA.ToString("N0") XOF</td>
                                     <td class="text-end small fw-semibold">$@r.AmountUsd.ToString("N2")</td>
                                     <td class="text-center">
-                                        @if (r.IsPaidToProvider)
+                                        @if (r.ProviderPaymentId is null)
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">No Provider</span>
+                                        }
+                                        else if (r.ProviderStatus == ProviderPaymentStatus.Paid)
                                         {
                                             <span class="badge bg-success-subtle text-success border border-success-subtle">Paid to Provider</span>
-                                            @if (r.PaidToProviderAt.HasValue)
+                                            @if (r.PaidAt.HasValue)
                                             {
-                                                <div class="text-muted" style="font-size:0.7rem">@r.PaidToProviderAt.Value.ToString("MMM dd, yyyy")</div>
+                                                <div class="text-muted" style="font-size:0.7rem">@r.PaidAt.Value.ToString("MMM dd, yyyy")</div>
                                             }
+                                        }
+                                        else if (r.ProviderStatus == ProviderPaymentStatus.Failed)
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Failed</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Awaiting</span>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Awaiting Payment</span>
                                         }
                                     </td>
                                     <td class="text-center pe-3">
-                                        @if (!r.IsPaidToProvider)
+                                        @if (r.ProviderPaymentId is null)
+                                        {
+                                            <span class="text-muted small">Assign provider first</span>
+                                        }
+                                        else if (r.ProviderStatus != ProviderPaymentStatus.Paid)
                                         {
                                             <button class="btn btn-sm btn-success" @onclick="() => OpenMarkPaid(r)">Mark Paid</button>
                                         }
                                         else
                                         {
-                                            <span class="text-muted small">@(r.ProviderPaymentReference ?? "—")</span>
+                                            <span class="text-muted small">@(r.ReferenceNumber ?? "—")</span>
                                         }
                                     </td>
                                 </tr>
@@ -226,17 +242,35 @@
                 <div class="fw-semibold">@markPaidRow.PrescriptionFileName</div>
                 <div class="small text-muted mt-2 mb-1">Recipient</div>
                 <div>@(markPaidRow.RecipientName ?? "—") — @markPaidRow.CountryName</div>
+                <div class="small text-muted mt-2 mb-1">Provider</div>
+                <div class="fw-semibold">@markPaidRow.ProviderName</div>
                 <div class="small text-muted mt-2 mb-1">Amount</div>
-                <div class="fw-semibold">$@markPaidRow.AmountUsd.ToString("N2") / @markPaidRow.AmountCFA.ToString("N0") CFA</div>
+                <div class="fw-semibold">@markPaidRow.AmountCFA.ToString("N0") XOF / $@markPaidRow.AmountUsd.ToString("N2")</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                <select class="form-select" @bind="markPaidMethod">
+                    @foreach (var method in Enum.GetValues<ProviderPaymentMethod>())
+                    {
+                        <option value="@method">@method</option>
+                    }
+                </select>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-semibold">
-                    Provider Payment Reference
+                    Reference Number
                     <span class="text-muted fw-normal">(optional)</span>
                 </label>
                 <input class="form-control" placeholder="e.g. WAVE-123456 or bank transfer ref"
                        @bind="markPaidReference" />
                 <div class="form-text">Mobile money confirmation code, bank ref, or any tracking number.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    Receipt URL
+                    <span class="text-muted fw-normal">(optional)</span>
+                </label>
+                <input class="form-control" placeholder="https://..." @bind="markPaidReceiptUrl" />
             </div>
         </div>
         <div class="modal-panel-footer">
@@ -283,13 +317,18 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label fw-semibold">Amount CFA</label>
-                <input class="form-control" type="number" @bind="assignAmountCFA" />
+                <label class="form-label fw-semibold">Amount XOF</label>
+                <input class="form-control" type="number" @bind="assignAmountXOF" />
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-semibold">Payment Method <span class="text-muted fw-normal">(optional)</span></label>
-                <input class="form-control" placeholder="e.g. Mobile Money, Bank Transfer" @bind="assignPaymentMethod" />
+                <select class="form-select" @bind="assignPaymentMethod">
+                    @foreach (var method in Enum.GetValues<ProviderPaymentMethod>())
+                    {
+                        <option value="@method">@method</option>
+                    }
+                </select>
             </div>
         </div>
         <div class="modal-panel-footer">
@@ -339,13 +378,18 @@
     private string filter = "pending";
     private string? successMessage;
     private string? errorMessage;
+
     private PaymentRow? markPaidRow;
+    private ProviderPaymentMethod markPaidMethod = ProviderPaymentMethod.Wave;
     private string? markPaidReference;
+    private string? markPaidReceiptUrl;
+
     private PaymentRow? assignRow;
     private Guid assignProviderId;
-    private decimal assignAmountCFA;
-    private string? assignPaymentMethod;
+    private decimal assignAmountXOF;
+    private ProviderPaymentMethod assignPaymentMethod = ProviderPaymentMethod.Wave;
     private string? assignFormError;
+
     private bool isSaving;
 
     protected override async Task OnInitializedAsync()
@@ -362,31 +406,34 @@
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
 
-        var prescriptionIds = payments.Select(p => p.PrescriptionId).Distinct().ToList();
+        var paymentIds = payments.Select(p => p.Id).Distinct().ToList();
 
         var providerMap = await Db.ProviderPayments
-            .Where(pp => prescriptionIds.Contains(pp.PrescriptionId))
+            .Where(pp => paymentIds.Contains(pp.PaymentId))
             .Include(pp => pp.Provider)
-            .GroupBy(pp => pp.PrescriptionId)
-            .ToDictionaryAsync(g => g.Key, g => (g.First().ProviderPaymentId, g.First().Provider.ProviderName));
+            .GroupBy(pp => pp.PaymentId)
+            .ToDictionaryAsync(g => g.Key, g =>
+            {
+                var first = g.First();
+                return (first.Id, first.Provider.ProviderName, first.Status, first.PaidAt, first.ReferenceNumber);
+            });
 
         rows = payments.Select(p =>
         {
-            var prov = providerMap.GetValueOrDefault(p.PrescriptionId);
+            providerMap.TryGetValue(p.Id, out var prov);
             return new PaymentRow(
                 p.Id,
                 p.PrescriptionId,
                 p.Prescription.PrescriptionFileName,
                 p.Prescription.RecipientFirstLastName,
                 p.Prescription.CountryName,
-                prov.ProviderPaymentId == Guid.Empty ? null : prov.ProviderPaymentId,
-                prov.ProviderName,
+                prov == default ? null : (Guid?)prov.Id,
+                prov == default ? null : prov.ProviderName,
                 p.Prescription.AmountCFA,
                 p.AmountUsd,
-                p.Status,
-                p.IsPaidToProvider,
-                p.PaidToProviderAt,
-                p.ProviderPaymentReference,
+                prov == default ? null : (ProviderPaymentStatus?)prov.Status,
+                prov == default ? null : prov.PaidAt,
+                prov == default ? null : prov.ReferenceNumber,
                 p.CreatedAt
             );
         }).ToList();
@@ -395,7 +442,9 @@
     private void OpenMarkPaid(PaymentRow row)
     {
         markPaidRow = row;
+        markPaidMethod = ProviderPaymentMethod.Wave;
         markPaidReference = null;
+        markPaidReceiptUrl = null;
     }
 
     private void ClosePanel() => markPaidRow = null;
@@ -404,8 +453,8 @@
     {
         assignRow = row;
         assignProviderId = Guid.Empty;
-        assignAmountCFA = row.AmountCFA;
-        assignPaymentMethod = null;
+        assignAmountXOF = row.AmountCFA;
+        assignPaymentMethod = ProviderPaymentMethod.Wave;
         assignFormError = null;
     }
 
@@ -420,7 +469,6 @@
         assignFormError = null;
         try
         {
-            // Remove existing assignment if present
             if (assignRow.ProviderPaymentId.HasValue)
             {
                 var existing = await Db.ProviderPayments.FindAsync(assignRow.ProviderPaymentId.Value);
@@ -429,11 +477,11 @@
 
             Db.ProviderPayments.Add(new ProviderPayment
             {
-                ProviderId     = assignProviderId,
-                PrescriptionId = assignRow.PrescriptionId,
-                AmountCFA      = assignAmountCFA,
-                PaymentMethod  = string.IsNullOrWhiteSpace(assignPaymentMethod) ? null : assignPaymentMethod.Trim(),
-                Status         = "Pending"
+                ProviderId    = assignProviderId,
+                PaymentId     = assignRow.Id,
+                AmountXOF     = assignAmountXOF,
+                PaymentMethod = assignPaymentMethod,
+                Status        = ProviderPaymentStatus.Pending
             });
 
             await Db.SaveChangesAsync();
@@ -455,21 +503,33 @@
     private async Task ConfirmMarkPaid()
     {
         if (markPaidRow is null) return;
+        if (!markPaidRow.ProviderPaymentId.HasValue)
+        {
+            errorMessage = "Assign a provider before marking as paid.";
+            markPaidRow  = null;
+            return;
+        }
+
         isSaving = true;
         try
         {
-            var payment = await Db.Payments.FindAsync(markPaidRow.Id);
-            if (payment is null) { errorMessage = "Payment not found."; return; }
+            var pp = await Db.ProviderPayments.FindAsync(markPaidRow.ProviderPaymentId.Value);
+            if (pp is null) { errorMessage = "Provider payment record not found."; return; }
 
-            payment.IsPaidToProvider = true;
-            payment.PaidToProviderAt = DateTime.UtcNow;
-            payment.ProviderPaymentReference = string.IsNullOrWhiteSpace(markPaidReference)
-                ? null : markPaidReference.Trim();
+            var authState = await AuthState.GetAuthenticationStateAsync();
+            var userId    = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            pp.Status          = ProviderPaymentStatus.Paid;
+            pp.PaymentMethod   = markPaidMethod;
+            pp.ReferenceNumber = string.IsNullOrWhiteSpace(markPaidReference) ? null : markPaidReference.Trim();
+            pp.ReceiptUrl      = string.IsNullOrWhiteSpace(markPaidReceiptUrl) ? null : markPaidReceiptUrl.Trim();
+            pp.PaidBy          = userId;
+            pp.PaidAt          = DateTime.UtcNow;
 
             await Db.SaveChangesAsync();
             successMessage = "Payment marked as paid to provider.";
-            errorMessage = null;
-            markPaidRow = null;
+            errorMessage   = null;
+            markPaidRow    = null;
             await LoadRows();
         }
         catch (Exception ex)
@@ -492,10 +552,9 @@
         string? ProviderName,
         decimal AmountCFA,
         decimal AmountUsd,
-        string Status,
-        bool IsPaidToProvider,
-        DateTime? PaidToProviderAt,
-        string? ProviderPaymentReference,
+        ProviderPaymentStatus? ProviderStatus,
+        DateTime? PaidAt,
+        string? ReferenceNumber,
         DateTime CreatedAt
     );
 }
