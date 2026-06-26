@@ -202,6 +202,63 @@
         </div>
         </div>
 
+    <!-- Financial Overview -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <h6 class="text-muted text-uppercase fw-semibold small mb-0">Financial Overview</h6>
+        </div>
+        <div class="col-sm-6 col-lg">
+            <a href="admin/provider-payments" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Stripe Payments Today</p>
+                        <h3 class="mb-0 fw-bold text-success">@stripePaymentsToday</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg">
+            <a href="admin/provider-payments" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Provider Payouts Today</p>
+                        <h3 class="mb-0 fw-bold text-primary">@providerPayoutsToday</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg">
+            <a href="admin/provider-payments" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Pending Payouts</p>
+                        <h3 class="mb-0 fw-bold text-warning">@pendingPayouts</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg">
+            <a href="admin/provider-payments" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Failed Payouts</p>
+                        <h3 class="mb-0 fw-bold text-danger">@failedPayouts</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg">
+            <a href="admin/provider-payments" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 stat-card">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Outstanding Liability</p>
+                        <h3 class="mb-0 fw-bold text-danger">@outstandingLiabilityXOF.ToString("N0") XOF</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
     <div class="row g-4">
         <div class="col-lg-8">
             <div id="users-section" class="card border-0 shadow-sm">
@@ -354,6 +411,11 @@
     private int pendingSendPrescriptions;
     private int totalProviders;
     private int activeProviders;
+    private int stripePaymentsToday;
+    private int providerPayoutsToday;
+    private int pendingPayouts;
+    private int failedPayouts;
+    private decimal outstandingLiabilityXOF;
     private List<UserRow> users = [];
     private List<string> roles = [];
     private Dictionary<string, int> usersByRole = [];
@@ -375,6 +437,15 @@
         pendingSendPrescriptions = await Db.SendPrescriptions.CountAsync(r => r.Status == "Pending");
         totalProviders = await Db.Providers.CountAsync();
         activeProviders = await Db.Providers.CountAsync(p => p.IsActive);
+
+        var today = DateTime.UtcNow.Date;
+        stripePaymentsToday  = await Db.Payments.CountAsync(p => p.Status == "Paid" && p.CreatedAt >= today);
+        providerPayoutsToday = await Db.ProviderPayments.CountAsync(pp => pp.Status == ProviderPaymentStatus.Paid && pp.PaidAt >= today);
+        pendingPayouts       = await Db.ProviderPayments.CountAsync(pp => pp.Status == ProviderPaymentStatus.Assigned || pp.Status == ProviderPaymentStatus.Pending);
+        failedPayouts        = await Db.ProviderPayments.CountAsync(pp => pp.Status == ProviderPaymentStatus.Failed);
+        outstandingLiabilityXOF = await Db.ProviderPayments
+            .Where(pp => pp.Status == ProviderPaymentStatus.Assigned || pp.Status == ProviderPaymentStatus.Pending)
+            .SumAsync(pp => (decimal?)pp.AmountXOF) ?? 0m;
 
         roles = RoleManager.Roles.Select(r => r.Name!).OrderBy(r => r).ToList();
         totalRoles = roles.Count;

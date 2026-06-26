@@ -160,6 +160,7 @@
                                         }
                                         else
                                         {
+                                            <a href="/admin/provider-statement/@p.ProviderId" class="btn btn-sm btn-outline-secondary me-1">Statement</a>
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenEditModal(p)">Edit</button>
                                             <button class="btn btn-sm @(p.IsActive ? "btn-outline-warning" : "btn-outline-success") me-1"
                                                     @onclick="() => ToggleActive(p.ProviderId)">

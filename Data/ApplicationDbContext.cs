@@ -27,7 +27,7 @@ namespace DiaspoDirect.Data
 
                 entity.HasOne(pp => pp.PaidByUser)
                       .WithMany()
-                      .HasForeignKey(pp => pp.PaidBy)
+                      .HasForeignKey(pp => pp.PaidByUserId)
                       .OnDelete(DeleteBehavior.SetNull);
 
                 entity.Property(pp => pp.PaymentMethod)

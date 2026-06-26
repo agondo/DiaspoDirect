@@ -85,7 +85,7 @@
                     </div>
                     <div>
                         <p class="text-muted small mb-0">Awaiting Payment</p>
-                        <h3 class="mb-0 fw-bold text-warning">@rows.Count(r => r.ProviderStatus == ProviderPaymentStatus.Pending)</h3>
+                        <h3 class="mb-0 fw-bold text-warning">@rows.Count(r => r.ProviderStatus == ProviderPaymentStatus.Assigned || r.ProviderStatus == ProviderPaymentStatus.Pending)</h3>
                     </div>
                 </div>
             </div>
@@ -195,9 +195,17 @@
                                         {
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Failed</span>
                                         }
+                                        else if (r.ProviderStatus == ProviderPaymentStatus.Cancelled)
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Cancelled</span>
+                                        }
+                                        else if (r.ProviderStatus == ProviderPaymentStatus.Assigned)
+                                        {
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle">Assigned</span>
+                                        }
                                         else
                                         {
-                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Awaiting Payment</span>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending Transfer</span>
                                         }
                                     </td>
                                     <td class="text-center pe-3">
@@ -271,6 +279,13 @@
                     <span class="text-muted fw-normal">(optional)</span>
                 </label>
                 <input class="form-control" placeholder="https://..." @bind="markPaidReceiptUrl" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    Notes
+                    <span class="text-muted fw-normal">(optional)</span>
+                </label>
+                <textarea class="form-control" rows="3" placeholder="Admin notes or audit details..." @bind="markPaidNotes"></textarea>
             </div>
         </div>
         <div class="modal-panel-footer">
@@ -383,6 +398,7 @@
     private ProviderPaymentMethod markPaidMethod = ProviderPaymentMethod.Wave;
     private string? markPaidReference;
     private string? markPaidReceiptUrl;
+    private string? markPaidNotes;
 
     private PaymentRow? assignRow;
     private Guid assignProviderId;
@@ -445,6 +461,7 @@
         markPaidMethod = ProviderPaymentMethod.Wave;
         markPaidReference = null;
         markPaidReceiptUrl = null;
+        markPaidNotes = null;
     }
 
     private void ClosePanel() => markPaidRow = null;
@@ -481,7 +498,7 @@
                 PaymentId     = assignRow.Id,
                 AmountXOF     = assignAmountXOF,
                 PaymentMethod = assignPaymentMethod,
-                Status        = ProviderPaymentStatus.Pending
+                Status        = ProviderPaymentStatus.Assigned
             });
 
             await Db.SaveChangesAsync();
@@ -523,8 +540,10 @@
             pp.PaymentMethod   = markPaidMethod;
             pp.ReferenceNumber = string.IsNullOrWhiteSpace(markPaidReference) ? null : markPaidReference.Trim();
             pp.ReceiptUrl      = string.IsNullOrWhiteSpace(markPaidReceiptUrl) ? null : markPaidReceiptUrl.Trim();
-            pp.PaidBy          = userId;
+            pp.Notes           = string.IsNullOrWhiteSpace(markPaidNotes) ? null : markPaidNotes.Trim();
+            pp.PaidByUserId    = userId;
             pp.PaidAt          = DateTime.UtcNow;
+            pp.UpdatedAt       = DateTime.UtcNow;
 
             await Db.SaveChangesAsync();
             successMessage = "Payment marked as paid to provider.";

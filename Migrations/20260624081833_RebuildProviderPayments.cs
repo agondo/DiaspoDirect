@@ -11,6 +11,8 @@ namespace DiaspoDirect.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("DELETE FROM \"ProviderPayments\";");
+
             migrationBuilder.DropColumn(
                 name: "PaymentDate",
                 table: "ProviderPayments");

@@ -3,6 +3,7 @@ using System;
 using DiaspoDirect.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DiaspoDirect.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260626021151_ImproveProviderPayment")]
+    partial class ImproveProviderPayment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -221,8 +224,17 @@ namespace DiaspoDirect.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsPaidToProvider")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PaidToProviderAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("PrescriptionId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ProviderPaymentReference")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()

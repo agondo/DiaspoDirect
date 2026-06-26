@@ -1,0 +1,272 @@
+@page "/admin/provider-statement/{ProviderId:guid}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using DiaspoDirect.Data
+@using System.Text
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext Db
+@inject IJSRuntime JS
+
+<PageTitle>@(provider?.ProviderName ?? "Provider") Statement — Admin</PageTitle>
+
+@if (provider is null)
+{
+    <div class="container-fluid py-4">
+        <p class="text-muted">Provider not found.</p>
+    </div>
+}
+else
+{
+    <div class="container-fluid py-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="/admin">Admin</a></li>
+                        <li class="breadcrumb-item"><a href="/admin/providers">Providers</a></li>
+                        <li class="breadcrumb-item active">Statement</li>
+                    </ol>
+                </nav>
+                <h2 class="mb-0">@provider.ProviderName</h2>
+                <p class="text-muted mb-0">
+                    @provider.ProviderType
+                    @if (provider.Phone is not null) { <span> · @provider.Phone</span> }
+                    · <span class="@(provider.IsActive ? "text-success" : "text-secondary")">@(provider.IsActive ? "Active" : "Inactive")</span>
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-success" @onclick="ExportCsv" disabled="@(items.Count == 0)">
+                    Export CSV
+                </button>
+                <button class="btn btn-outline-primary" @onclick="ExportPdf" disabled="@(items.Count == 0)">
+                    Export PDF
+                </button>
+                <a href="/admin/providers" class="btn btn-outline-secondary">Back to Providers</a>
+            </div>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Total Paid</p>
+                        <h3 class="mb-0 fw-bold text-success">@totalPaid.ToString("N0") XOF</h3>
+                        <div class="text-muted small">@paidCount prescription@(paidCount == 1 ? "" : "s")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Total Outstanding</p>
+                        <h3 class="mb-0 fw-bold text-warning">@totalOutstanding.ToString("N0") XOF</h3>
+                        <div class="text-muted small">@outstandingCount prescription@(outstandingCount == 1 ? "" : "s")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Last Payment Date</p>
+                        <h3 class="mb-0 fw-bold">@(lastPaymentDate.HasValue ? lastPaymentDate.Value.ToString("MMM dd, yyyy") : "—")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1">Avg Payment Delay</p>
+                        <h3 class="mb-0 fw-bold">@(avgPaymentDelayDays.HasValue ? $"{avgPaymentDelayDays.Value:N0} days" : "—")</h3>
+                        <div class="text-muted small">from assignment to payment</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Transaction History</h5>
+                <span class="text-muted small">@items.Count record@(items.Count == 1 ? "" : "s")</span>
+            </div>
+            <div class="card-body p-0">
+                @if (items.Count == 0)
+                {
+                    <div class="text-center text-muted py-5">
+                        <p class="mb-0">No transactions found for this provider.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Prescription</th>
+                                    <th>Customer</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Reference</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-3">Paid On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in items)
+                                {
+                                    <tr>
+                                        <td class="ps-3 text-muted small">@item.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            <div class="small fw-semibold text-truncate" style="max-width:180px"
+                                                 title="@item.Payment.Prescription.PrescriptionFileName">
+                                                @item.Payment.Prescription.PrescriptionFileName
+                                            </div>
+                                        </td>
+                                        <td class="small">@(item.Payment.Prescription.RecipientFirstLastName ?? "—")</td>
+                                        <td class="text-end fw-semibold small">@item.AmountXOF.ToString("N0") XOF</td>
+                                        <td class="small text-muted">@(item.ReferenceNumber ?? "—")</td>
+                                        <td class="text-center">
+                                            @{ var (badgeCss, badgeLabel) = StatusBadge(item.Status); }
+                                            <span class="badge @badgeCss">@badgeLabel</span>
+                                        </td>
+                                        <td class="text-end pe-3 text-muted small">
+                                            @(item.PaidAt.HasValue ? item.PaidAt.Value.ToString("MMM dd, yyyy") : "—")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light border-top">
+                                <tr class="fw-semibold">
+                                    <td class="ps-3" colspan="3">Total</td>
+                                    <td class="text-end">@items.Sum(i => i.AmountXOF).ToString("N0") XOF</td>
+                                    <td colspan="3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProviderId { get; set; }
+
+    private Provider? provider;
+    private List<ProviderPayment> items = [];
+
+    private decimal totalPaid;
+    private decimal totalOutstanding;
+    private int paidCount;
+    private int outstandingCount;
+    private DateTime? lastPaymentDate;
+    private double? avgPaymentDelayDays;
+
+    protected override async Task OnInitializedAsync()
+    {
+        provider = await Db.Providers.FindAsync(ProviderId);
+        if (provider is null) return;
+
+        items = await Db.ProviderPayments
+            .Where(pp => pp.ProviderId == ProviderId)
+            .Include(pp => pp.Payment)
+                .ThenInclude(p => p.Prescription)
+            .OrderByDescending(pp => pp.CreatedAt)
+            .ToListAsync();
+
+        paidCount        = items.Count(i => i.Status == ProviderPaymentStatus.Paid);
+        totalPaid        = items.Where(i => i.Status == ProviderPaymentStatus.Paid).Sum(i => i.AmountXOF);
+        outstandingCount = items.Count(i => i.Status == ProviderPaymentStatus.Assigned || i.Status == ProviderPaymentStatus.Pending);
+        totalOutstanding = items.Where(i => i.Status == ProviderPaymentStatus.Assigned || i.Status == ProviderPaymentStatus.Pending).Sum(i => i.AmountXOF);
+        lastPaymentDate  = items.Where(i => i.PaidAt.HasValue).Max(i => i.PaidAt);
+
+        var delays = items
+            .Where(i => i.Status == ProviderPaymentStatus.Paid && i.PaidAt.HasValue)
+            .Select(i => (i.PaidAt!.Value - i.CreatedAt).TotalDays)
+            .ToList();
+
+        avgPaymentDelayDays = delays.Count > 0 ? delays.Average() : null;
+    }
+
+    private async Task ExportCsv()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("Date,Prescription,Customer,Amount XOF,Reference,Status,Paid On");
+        foreach (var item in items)
+        {
+            sb.AppendLine(string.Join(",",
+                item.CreatedAt.ToString("yyyy-MM-dd"),
+                CsvEscape(item.Payment.Prescription.PrescriptionFileName),
+                CsvEscape(item.Payment.Prescription.RecipientFirstLastName ?? ""),
+                item.AmountXOF.ToString("N0"),
+                CsvEscape(item.ReferenceNumber ?? ""),
+                item.Status.ToString(),
+                item.PaidAt?.ToString("yyyy-MM-dd") ?? ""
+            ));
+        }
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        var filename = $"{provider!.ProviderName.Replace(" ", "_")}_Statement_{DateTime.UtcNow:yyyyMMdd}.csv";
+        await JS.InvokeVoidAsync("downloadFileFromBytes", filename, "text/csv", bytes);
+    }
+
+    private async Task ExportPdf()
+    {
+        var summary = new
+        {
+            totalPaid        = totalPaid.ToString("N0"),
+            totalOutstanding = totalOutstanding.ToString("N0"),
+            lastPaymentDate  = lastPaymentDate?.ToString("MMM dd, yyyy") ?? "—",
+            avgDelay         = avgPaymentDelayDays.HasValue ? $"{avgPaymentDelayDays.Value:N0} days" : "—"
+        };
+
+        var rows = items.Select(i => new
+        {
+            date         = i.CreatedAt.ToString("MMM dd, yyyy"),
+            prescription = i.Payment.Prescription.PrescriptionFileName,
+            customer     = i.Payment.Prescription.RecipientFirstLastName ?? "—",
+            amountXof    = i.AmountXOF.ToString("N0"),
+            reference    = i.ReferenceNumber ?? "—",
+            status       = i.Status.ToString(),
+            paidOn       = i.PaidAt?.ToString("MMM dd, yyyy") ?? "—"
+        }).ToList();
+
+        await JS.InvokeVoidAsync("generateProviderStatementPdf",
+            provider!.ProviderName,
+            provider.ProviderType.ToString(),
+            provider.Phone ?? "",
+            DateTime.UtcNow.ToString("MMM dd, yyyy"),
+            summary,
+            rows);
+    }
+
+    private static string CsvEscape(string value)
+    {
+        if (!value.Contains(',') && !value.Contains('"') && !value.Contains('\n'))
+            return value;
+        var sb = new StringBuilder();
+        sb.Append('"');
+        foreach (var c in value)
+        {
+            if (c == '"') sb.Append('"');
+            sb.Append(c);
+        }
+        sb.Append('"');
+        return sb.ToString();
+    }
+
+    private static (string Css, string Label) StatusBadge(ProviderPaymentStatus status) => status switch
+    {
+        ProviderPaymentStatus.Paid      => ("bg-success-subtle text-success border border-success-subtle", "Paid"),
+        ProviderPaymentStatus.Assigned  => ("bg-info-subtle text-info border border-info-subtle", "Assigned"),
+        ProviderPaymentStatus.Pending   => ("bg-warning-subtle text-warning border border-warning-subtle", "Pending Transfer"),
+        ProviderPaymentStatus.Failed    => ("bg-danger-subtle text-danger border border-danger-subtle", "Failed"),
+        ProviderPaymentStatus.Cancelled => ("bg-secondary-subtle text-secondary border border-secondary-subtle", "Cancelled"),
+        _                               => ("bg-secondary-subtle text-secondary", "Unknown")
+    };
+}
