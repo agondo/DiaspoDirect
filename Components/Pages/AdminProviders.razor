@@ -219,9 +219,13 @@
                     <input class="form-control" @bind="form.Phone" placeholder="+225 00 00 00 00" />
                 </div>
                 <div class="col-6">
-                    <label class="form-label fw-semibold">Payment Method</label>
-                    <input class="form-control" @bind="form.PaymentMethod" placeholder="Mobile Money / Bank" />
+                    <label class="form-label fw-semibold">Email</label>
+                    <input class="form-control" type="email" @bind="form.Email" placeholder="pharmacy@example.com" />
                 </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Payment Method</label>
+                <input class="form-control" @bind="form.PaymentMethod" placeholder="Mobile Money / Bank" />
             </div>
 
             <div class="row g-3 mb-3">
@@ -349,6 +353,7 @@
             ProviderName = p.ProviderName,
             ProviderType = p.ProviderType,
             Phone = p.Phone,
+            Email = p.Email,
             Address = p.Address,
             PaymentMethod = p.PaymentMethod,
             MobileMoneyNumber = p.MobileMoneyNumber,
@@ -386,6 +391,7 @@
                 existing.ProviderName = form.ProviderName.Trim();
                 existing.ProviderType = form.ProviderType;
                 existing.Phone = form.Phone?.Trim();
+                existing.Email = form.Email?.Trim();
                 existing.Address = form.Address?.Trim();
                 existing.PaymentMethod = form.PaymentMethod?.Trim();
                 existing.MobileMoneyNumber = form.MobileMoneyNumber?.Trim();
@@ -401,6 +407,7 @@
                     ProviderName = form.ProviderName.Trim(),
                     ProviderType = form.ProviderType,
                     Phone = form.Phone?.Trim(),
+                    Email = form.Email?.Trim(),
                     Address = form.Address?.Trim(),
                     PaymentMethod = form.PaymentMethod?.Trim(),
                     MobileMoneyNumber = form.MobileMoneyNumber?.Trim(),
@@ -467,6 +474,7 @@
         public string ProviderName { get; set; } = "";
         public ProviderType ProviderType { get; set; } = ProviderType.Pharmacy;
         public string? Phone { get; set; }
+        public string? Email { get; set; }
         public string? Address { get; set; }
         public string? PaymentMethod { get; set; }
         public string? MobileMoneyNumber { get; set; }

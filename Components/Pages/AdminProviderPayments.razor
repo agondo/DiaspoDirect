@@ -9,6 +9,7 @@
 
 @inject ApplicationDbContext Db
 @inject AuthenticationStateProvider AuthState
+@inject DiaspoDirect.Services.NotificationService Notifications
 
 <PageTitle>Provider Payments — Admin</PageTitle>
 
@@ -492,19 +493,26 @@
                 if (existing is not null) Db.ProviderPayments.Remove(existing);
             }
 
-            Db.ProviderPayments.Add(new ProviderPayment
+            var newProviderPayment = new ProviderPayment
             {
                 ProviderId    = assignProviderId,
                 PaymentId     = assignRow.Id,
                 AmountXOF     = assignAmountXOF,
                 PaymentMethod = assignPaymentMethod,
                 Status        = ProviderPaymentStatus.Assigned
-            });
+            };
+            Db.ProviderPayments.Add(newProviderPayment);
 
             await Db.SaveChangesAsync();
             successMessage = "Provider assigned successfully.";
             errorMessage   = null;
-            assignRow      = null;
+
+            var provider    = await Db.Providers.FindAsync(assignProviderId);
+            var prescription = await Db.SendPrescriptions.FindAsync(assignRow.PrescriptionId);
+            if (provider is not null && prescription is not null)
+                await Notifications.NotifyProviderAssignedAsync(provider, newProviderPayment, prescription);
+
+            assignRow = null;
             await LoadRows();
         }
         catch (Exception ex)
@@ -548,7 +556,17 @@
             await Db.SaveChangesAsync();
             successMessage = "Payment marked as paid to provider.";
             errorMessage   = null;
-            markPaidRow    = null;
+
+            var provider     = await Db.Providers.FindAsync(pp.ProviderId);
+            var payment      = await Db.Payments.Include(p => p.Prescription).FirstOrDefaultAsync(p => p.Id == pp.PaymentId);
+            var customer     = payment is not null ? await Db.Users.FindAsync(payment.UserId) : null;
+            if (provider is not null && payment is not null && customer?.Email is not null)
+                await Notifications.NotifyProviderPaidAsync(
+                    provider, pp, payment.Prescription,
+                    customer.Email,
+                    $"{customer.FirstName} {customer.LastName}".Trim());
+
+            markPaidRow = null;
             await LoadRows();
         }
         catch (Exception ex)

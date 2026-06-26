@@ -25,6 +25,9 @@ public class Provider
     [MaxLength(50)]
     public string? Phone { get; set; }
 
+    [MaxLength(200)]
+    public string? Email { get; set; }
+
     public string? Address { get; set; }
 
     [MaxLength(100)]

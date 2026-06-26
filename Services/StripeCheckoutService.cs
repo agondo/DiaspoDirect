@@ -4,7 +4,7 @@ using Stripe.Checkout;
 
 namespace DiaspoDirect.Services;
 
-public class StripeCheckoutService(ApplicationDbContext db)
+public class StripeCheckoutService(ApplicationDbContext db, NotificationService notifications)
 {
     public async Task<string> CreateCheckoutSessionAsync(
         SendPrescription prescription,
@@ -99,5 +99,18 @@ public class StripeCheckoutService(ApplicationDbContext db)
         });
 
         await db.SaveChangesAsync();
+
+        var user = await db.Users.FindAsync(tx.UserId);
+        if (prescription is not null && user is not null)
+        {
+            var payment = await db.Payments.OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync(p => p.StripeSessionId == sessionId);
+            if (payment is not null)
+                await notifications.NotifyPaymentReceivedAsync(
+                    payment,
+                    prescription,
+                    user.Email ?? "",
+                    $"{user.FirstName} {user.LastName}".Trim());
+        }
     }
 }

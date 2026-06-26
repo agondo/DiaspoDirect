@@ -51,6 +51,7 @@ builder.Services.AddScoped(sp =>
 
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 builder.Services.AddScoped<StripeCheckoutService>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();
