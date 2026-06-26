@@ -216,7 +216,16 @@
             <div class="row g-3 mb-3">
                 <div class="col-6">
                     <label class="form-label fw-semibold">Phone</label>
-                    <input class="form-control" @bind="form.Phone" placeholder="+225 00 00 00 00" />
+                    <div class="input-group">
+                        <select class="form-select" style="max-width:90px" @bind="form.CountryCode">
+                            <option value="+1">+1</option>
+                            <option value="+221">+221</option>
+                            <option value="+223">+223</option>
+                            <option value="+225">+225</option>
+                        </select>
+                        <input class="form-control" @bind="form.PhoneLocal" placeholder="07 00 00 00" />
+                    </div>
+                    <div class="form-text">+1 USA · +225 Ivory Coast · +223 Mali · +221 Senegal</div>
                 </div>
                 <div class="col-6">
                     <label class="form-label fw-semibold">Email</label>
@@ -347,12 +356,14 @@
 
     private void OpenEditModal(Provider p)
     {
+        var (code, local) = ParsePhone(p.Phone);
         form = new ProviderForm
         {
             ProviderId = p.ProviderId,
             ProviderName = p.ProviderName,
             ProviderType = p.ProviderType,
-            Phone = p.Phone,
+            CountryCode = code,
+            PhoneLocal = local,
             Email = p.Email,
             Address = p.Address,
             PaymentMethod = p.PaymentMethod,
@@ -390,7 +401,7 @@
                 if (existing is null) { formError = "Provider not found."; return; }
                 existing.ProviderName = form.ProviderName.Trim();
                 existing.ProviderType = form.ProviderType;
-                existing.Phone = form.Phone?.Trim();
+                existing.Phone = string.IsNullOrWhiteSpace(form.PhoneLocal) ? null : (form.CountryCode + form.PhoneLocal).Trim();
                 existing.Email = form.Email?.Trim();
                 existing.Address = form.Address?.Trim();
                 existing.PaymentMethod = form.PaymentMethod?.Trim();
@@ -406,7 +417,7 @@
                 {
                     ProviderName = form.ProviderName.Trim(),
                     ProviderType = form.ProviderType,
-                    Phone = form.Phone?.Trim(),
+                    Phone = string.IsNullOrWhiteSpace(form.PhoneLocal) ? null : (form.CountryCode + form.PhoneLocal).Trim(),
                     Email = form.Email?.Trim(),
                     Address = form.Address?.Trim(),
                     PaymentMethod = form.PaymentMethod?.Trim(),
@@ -473,12 +484,22 @@
         public Guid ProviderId { get; set; }
         public string ProviderName { get; set; } = "";
         public ProviderType ProviderType { get; set; } = ProviderType.Pharmacy;
-        public string? Phone { get; set; }
+        public string CountryCode { get; set; } = "+225";
+        public string? PhoneLocal { get; set; }
         public string? Email { get; set; }
         public string? Address { get; set; }
         public string? PaymentMethod { get; set; }
         public string? MobileMoneyNumber { get; set; }
         public string? BankAccountNumber { get; set; }
         public bool IsActive { get; set; } = true;
+    }
+
+    private static (string Code, string Local) ParsePhone(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return ("+225", "");
+        foreach (var code in new[] { "+225", "+223", "+221", "+1" })
+            if (phone.StartsWith(code))
+                return (code, phone[code.Length..].Trim());
+        return ("+225", phone);
     }
 }
