@@ -83,6 +83,16 @@
                             </InputSelect>
                             <ValidationMessage For="() => formModel.CountryName" class="text-danger small" />
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Pharmacy <span class="text-muted small">(optional)</span></label>
+                            <InputSelect @bind-Value="formModel.ProviderId" class="form-select">
+                                <option value="">-- Select Pharmacy --</option>
+                                @foreach (var p in pharmacyProviders)
+                                {
+                                    <option value="@p.ProviderId">@p.ProviderName</option>
+                                }
+                            </InputSelect>
+                        </div>
                         <div class="col-md-5">
                             <label class="form-label fw-semibold">Recipient Name <span class="text-muted small">(optional)</span></label>
                             <InputText @bind-Value="formModel.RecipientFirstLastName" class="form-control" placeholder="Full name of recipient" />
@@ -161,6 +171,16 @@
                             <option value="Burkina Faso">Burkina Faso</option>
                         </select>
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Pharmacy</label>
+                        <select class="form-select" @bind="editModel.ProviderId">
+                            <option value="">-- Select Pharmacy --</option>
+                            @foreach (var p in pharmacyProviders)
+                            {
+                                <option value="@p.ProviderId">@p.ProviderName</option>
+                            }
+                        </select>
+                    </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Recipient Name</label>
                         <input type="text" class="form-control" @bind="editModel.RecipientFirstLastName" placeholder="Full name of recipient" />
@@ -204,6 +224,16 @@
                                 <option value="Burkina Faso">Burkina Faso</option>
                             </InputSelect>
                             <ValidationMessage For="() => userEditModel.CountryName" class="text-danger small" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Pharmacy <span class="text-muted small">(optional)</span></label>
+                            <InputSelect @bind-Value="userEditModel.ProviderId" class="form-select">
+                                <option value="">-- Select Pharmacy --</option>
+                                @foreach (var p in pharmacyProviders)
+                                {
+                                    <option value="@p.ProviderId">@p.ProviderName</option>
+                                }
+                            </InputSelect>
                         </div>
                         <div class="col-md-5">
                             <label class="form-label fw-semibold">Recipient Name</label>
@@ -257,6 +287,7 @@
                                     <th>Phone</th>
                                 }
                                 <th>Country</th>
+                                <th>Pharmacy</th>
                                 <th>Recipient</th>
                                 <th>File</th>
                                 <th>Amount CFA</th>
@@ -282,6 +313,7 @@
                                         <td class="text-muted small">@rx.PhoneNumber</td>
                                     }
                                     <td class="fw-semibold small">@rx.CountryName</td>
+                                    <td class="small">@(rx.Provider?.ProviderName ?? "—")</td>
                                     <td class="small">
                                         @if (!string.IsNullOrWhiteSpace(rx.RecipientFirstLastName))
                                         {
@@ -364,6 +396,7 @@
 
 @code {
     private List<SendPrescription> prescriptions = [];
+    private List<Provider> pharmacyProviders = [];
     private ApplicationUser? currentUser;
     private bool isAdmin;
     private bool showForm;
@@ -394,6 +427,11 @@
         var email = auth.User.Identity?.Name;
         if (email is not null)
             currentUser = await UserManager.FindByNameAsync(email);
+        pharmacyProviders = await Db.Providers
+            .Where(p => p.ProviderType == ProviderType.Pharmacy && p.IsActive)
+            .OrderBy(p => p.ProviderName)
+            .AsNoTracking()
+            .ToListAsync();
         await LoadPrescriptions();
     }
 
@@ -401,9 +439,11 @@
     {
         if (isAdmin)
             prescriptions = await Db.SendPrescriptions.AsNoTracking()
+                .Include(r => r.Provider)
                 .OrderByDescending(r => r.CreatedDate).ToListAsync();
         else if (currentUser is not null)
             prescriptions = await Db.SendPrescriptions.AsNoTracking()
+                .Include(r => r.Provider)
                 .Where(r => r.UserId == currentUser.Id)
                 .OrderByDescending(r => r.CreatedDate).ToListAsync();
     }
@@ -477,7 +517,8 @@
                 AmountUSD              = formModel.AmountCFA / 555m,
                 Status                 = "Pending",
                 CreatedDate            = DateTime.UtcNow,
-                Notes                  = formModel.Notes
+                Notes                  = formModel.Notes,
+                ProviderId             = formModel.ProviderId == Guid.Empty ? null : formModel.ProviderId
             });
 
             await Db.SaveChangesAsync();
@@ -524,7 +565,8 @@
             RecipientFirstLastName = rx.RecipientFirstLastName,
             RecipientPhone         = rx.RecipientPhone,
             AmountCFA              = rx.AmountCFA,
-            Notes                  = rx.Notes
+            Notes                  = rx.Notes,
+            ProviderId             = rx.ProviderId
         };
     }
 
@@ -540,6 +582,7 @@
             rx.AmountCFA              = userEditModel.AmountCFA;
             rx.AmountUSD              = userEditModel.AmountCFA / 555m;
             rx.Notes                  = userEditModel.Notes;
+            rx.ProviderId             = userEditModel.ProviderId == Guid.Empty ? null : userEditModel.ProviderId;
             rx.UpdatedDate            = DateTime.UtcNow;
             await Db.SaveChangesAsync();
             Db.ChangeTracker.Clear();
@@ -588,7 +631,8 @@
             CountryName            = rx.CountryName,
             RecipientFirstLastName = rx.RecipientFirstLastName,
             RecipientPhone         = rx.RecipientPhone,
-            Notes                  = rx.Notes
+            Notes                  = rx.Notes,
+            ProviderId             = rx.ProviderId
         };
     }
 
@@ -604,6 +648,7 @@
             rx.RecipientFirstLastName = editModel.RecipientFirstLastName;
             rx.RecipientPhone         = editModel.RecipientPhone;
             rx.Notes                  = editModel.Notes;
+            rx.ProviderId             = editModel.ProviderId == Guid.Empty ? null : editModel.ProviderId;
             rx.UpdatedDate            = DateTime.UtcNow;
             await Db.SaveChangesAsync();
             Db.ChangeTracker.Clear();
@@ -634,6 +679,8 @@
         [Required(ErrorMessage = "Country is required."), MaxLength(100)]
         public string CountryName { get; set; } = "";
 
+        public Guid? ProviderId { get; set; }
+
         [MaxLength(200)]
         public string? RecipientFirstLastName { get; set; }
 
@@ -652,6 +699,7 @@
         public Guid Id { get; set; }
         [Required(ErrorMessage = "Country is required."), MaxLength(100)]
         public string CountryName { get; set; } = "";
+        public Guid? ProviderId { get; set; }
         [MaxLength(200)]
         public string? RecipientFirstLastName { get; set; }
         [MaxLength(30)]
@@ -667,6 +715,7 @@
         public Guid Id { get; set; }
         public string Status { get; set; } = "Pending";
         public string? CountryName { get; set; }
+        public Guid? ProviderId { get; set; }
         public string? RecipientFirstLastName { get; set; }
         public string? RecipientPhone { get; set; }
         public string? Notes { get; set; }

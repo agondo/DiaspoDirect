@@ -49,5 +49,8 @@ public class SendPrescription
 
     public string? Notes { get; set; }
 
+    public Guid? ProviderId { get; set; }
+    public Provider? Provider { get; set; }
+
     public ICollection<Payment> Payments { get; set; } = [];
 }
