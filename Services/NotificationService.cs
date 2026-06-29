@@ -63,6 +63,31 @@ public class NotificationService(GmailEmailSender email, IConfiguration config, 
         }
     }
 
+    public async Task NotifyRecipientPrescriptionProcessedAsync(SendPrescription prescription, string recipientEmail, string recipientName, string providerName)
+    {
+        if (string.IsNullOrWhiteSpace(recipientEmail)) return;
+
+        try
+        {
+            await email.SendEmailAsync(
+                recipientEmail,
+                $"Your prescription has been processed — DiaspoDirect",
+                Template("Prescription Processed", $"""
+                    <p>Dear {recipientName},</p>
+                    <p>Your prescription has been processed and fulfilled by our pharmacy partner.</p>
+                    {Row("Prescription", prescription.PrescriptionFileName ?? "—")}
+                    {Row("Country", prescription.CountryName)}
+                    {Row("Pharmacy", providerName)}
+                    {Row("Date", DateTime.UtcNow.ToString("MMM dd, yyyy"))}
+                    <p style="margin-top:16px">Thank you for using DiaspoDirect.</p>
+                """));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send recipient prescription processed notification to {Email}", recipientEmail);
+        }
+    }
+
     public async Task NotifyProviderAssignedAsync(Provider provider, ProviderPayment providerPayment, SendPrescription prescription)
     {
         try

@@ -566,6 +566,18 @@
                     customer.Email,
                     $"{customer.FirstName} {customer.LastName}".Trim());
 
+            var prescription = payment?.Prescription;
+            if (provider is not null && prescription?.RecipientPhone is not null)
+            {
+                var recipient = await Db.Users.FirstOrDefaultAsync(u => u.PhoneNumber == prescription.RecipientPhone);
+                if (recipient?.Email is not null)
+                    await Notifications.NotifyRecipientPrescriptionProcessedAsync(
+                        prescription,
+                        recipient.Email,
+                        $"{recipient.FirstName} {recipient.LastName}".Trim(),
+                        provider.ProviderName);
+            }
+
             markPaidRow = null;
             await LoadRows();
         }
