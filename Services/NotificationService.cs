@@ -135,6 +135,32 @@ public class NotificationService(GmailEmailSender email, IConfiguration config, 
         }
     }
 
+    public async Task NotifySenderProviderPaidAsync(SendPrescription prescription, Provider provider, ProviderPayment providerPayment, string senderEmail, string senderName)
+    {
+        if (string.IsNullOrWhiteSpace(senderEmail)) return;
+
+        try
+        {
+            await email.SendEmailAsync(
+                senderEmail,
+                $"Prescription fulfilled — {prescription.RecipientFirstLastName ?? "—"}",
+                Template("Prescription Fulfilled", $"""
+                    <p>Dear {senderName},</p>
+                    <p>The prescription you sent for <strong>{prescription.RecipientFirstLastName ?? "—"}</strong> has been fulfilled. The pharmacy has been paid and the order is complete.</p>
+                    {Row("Recipient", prescription.RecipientFirstLastName ?? "—")}
+                    {Row("Country", prescription.CountryName)}
+                    {Row("Pharmacy", provider.ProviderName)}
+                    {Row("Amount Paid (XOF)", $"{providerPayment.AmountXOF:N0} XOF")}
+                    {Row("Date", providerPayment.PaidAt?.ToString("MMM dd, yyyy") ?? DateTime.UtcNow.ToString("MMM dd, yyyy"))}
+                    <p style="margin-top:16px">Thank you for using DiaspoDirect.</p>
+                """));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send sender provider paid notification to {Email}", senderEmail);
+        }
+    }
+
     public async Task NotifyProviderPaidAsync(Provider provider, ProviderPayment providerPayment, SendPrescription prescription, string customerEmail, string customerName)
     {
         try

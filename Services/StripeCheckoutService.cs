@@ -115,17 +115,6 @@ public class StripeCheckoutService(ApplicationDbContext db, NotificationService 
                     payerUser.Email ?? "",
                     payerName);
 
-                var senderUser = prescription.UserId != tx.UserId
-                    ? await db.Users.FindAsync(prescription.UserId)
-                    : payerUser;
-
-                if (senderUser is not null)
-                    await notifications.NotifySenderPaymentReceivedAsync(
-                        payment,
-                        prescription,
-                        senderUser.Email ?? "",
-                        $"{senderUser.FirstName} {senderUser.LastName}".Trim(),
-                        payerName);
             }
         }
     }

@@ -567,6 +567,18 @@
                     $"{customer.FirstName} {customer.LastName}".Trim());
 
             var prescription = payment?.Prescription;
+            if (provider is not null && prescription is not null)
+            {
+                var senderUser = await Db.Users.FindAsync(prescription.UserId);
+                if (senderUser?.Email is not null)
+                    await Notifications.NotifySenderProviderPaidAsync(
+                        prescription,
+                        provider,
+                        pp,
+                        senderUser.Email,
+                        $"{senderUser.FirstName} {senderUser.LastName}".Trim());
+            }
+
             if (provider is not null && prescription?.RecipientPhone is not null)
             {
                 var recipient = await Db.Users.FirstOrDefaultAsync(u => u.PhoneNumber == prescription.RecipientPhone);
