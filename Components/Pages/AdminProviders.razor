@@ -118,6 +118,7 @@
                                 <th class="ps-3">Name</th>
                                 <th>Type</th>
                                 <th>Phone</th>
+                                <th>Email</th>
                                 <th>Payment Method</th>
                                 <th>Mobile Money</th>
                                 <th class="text-center">Status</th>
@@ -139,6 +140,7 @@
                                         <span class="badge @TypeBadge(p.ProviderType)">@p.ProviderType</span>
                                     </td>
                                     <td class="small text-muted">@(p.Phone ?? "—")</td>
+                                    <td class="small text-muted">@(p.Email ?? "—")</td>
                                     <td class="small text-muted">@(p.PaymentMethod ?? "—")</td>
                                     <td class="small text-muted">@(p.MobileMoneyNumber ?? "—")</td>
                                     <td class="text-center">

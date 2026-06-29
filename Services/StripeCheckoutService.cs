@@ -100,17 +100,33 @@ public class StripeCheckoutService(ApplicationDbContext db, NotificationService 
 
         await db.SaveChangesAsync();
 
-        var user = await db.Users.FindAsync(tx.UserId);
-        if (prescription is not null && user is not null)
+        var payerUser = await db.Users.FindAsync(tx.UserId);
+        if (prescription is not null && payerUser is not null)
         {
             var payment = await db.Payments.OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync(p => p.StripeSessionId == sessionId);
             if (payment is not null)
+            {
+                var payerName = $"{payerUser.FirstName} {payerUser.LastName}".Trim();
+
                 await notifications.NotifyPaymentReceivedAsync(
                     payment,
                     prescription,
-                    user.Email ?? "",
-                    $"{user.FirstName} {user.LastName}".Trim());
+                    payerUser.Email ?? "",
+                    payerName);
+
+                var senderUser = prescription.UserId != tx.UserId
+                    ? await db.Users.FindAsync(prescription.UserId)
+                    : payerUser;
+
+                if (senderUser is not null)
+                    await notifications.NotifySenderPaymentReceivedAsync(
+                        payment,
+                        prescription,
+                        senderUser.Email ?? "",
+                        $"{senderUser.FirstName} {senderUser.LastName}".Trim(),
+                        payerName);
+            }
         }
     }
 }
