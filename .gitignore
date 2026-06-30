@@ -14,7 +14,7 @@ appsettings.*.json
 Properties/serviceDependencies.local.json
 
 ## Logo source / working files
-wwwroot/images/logo/dd_logo_nobg.png
+wwwroot/images/logo/Diaspodirect_nobg.png
 
 ## Uploads / generated files
 wwwroot/uploads/
