@@ -13,6 +13,9 @@ appsettings.*.json
 ## Local service dependency files
 Properties/serviceDependencies.local.json
 
+## Logo source / working files
+wwwroot/images/logo/dd_logo_nobg.png
+
 ## Uploads / generated files
 wwwroot/uploads/
 wwwroot/PrescriptionsDir/
