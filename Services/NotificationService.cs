@@ -38,30 +38,6 @@ public class NotificationService(GmailEmailSender email, IConfiguration config, 
         }
     }
 
-    public async Task NotifySenderPaymentReceivedAsync(Payment payment, SendPrescription prescription, string senderEmail, string senderName, string payerName)
-    {
-        if (string.IsNullOrWhiteSpace(senderEmail)) return;
-
-        try
-        {
-            await email.SendEmailAsync(
-                senderEmail,
-                $"Payment received for your prescription — {prescription.RecipientFirstLastName ?? "—"}",
-                Template("Prescription Payment Confirmed", $"""
-                    <p>Dear {senderName},</p>
-                    <p>Good news! The prescription you sent for <strong>{prescription.RecipientFirstLastName ?? "—"}</strong> has been paid by {payerName}.</p>
-                    {Row("Recipient", prescription.RecipientFirstLastName ?? "—")}
-                    {Row("Country", prescription.CountryName)}
-                    {Row("Amount Paid (USD)", $"${payment.AmountUsd:F2}")}
-                    {Row("Date", payment.CreatedAt.ToString("MMM dd, yyyy HH:mm UTC"))}
-                    <p style="margin-top:16px">We will now process your prescription and keep you updated on its progress.</p>
-                """));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to send sender payment notification to {Email}", senderEmail);
-        }
-    }
 
     public async Task NotifyRecipientPrescriptionProcessedAsync(SendPrescription prescription, string recipientEmail, string recipientName, string providerName)
     {
