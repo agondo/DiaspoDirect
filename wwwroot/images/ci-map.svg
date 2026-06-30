@@ -1,72 +1,70 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260">
   <defs>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <radialGradient id="fill-grad" cx="50%" cy="55%" r="55%">
-      <stop offset="0%"   stop-color="#0B666A" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#071952" stop-opacity="0.10"/>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0B666A" flood-opacity="0.25"/>
+    </filter>
+    <radialGradient id="fill-grad" cx="45%" cy="60%" r="60%">
+      <stop offset="0%"   stop-color="#0B666A" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#071952" stop-opacity="0.30"/>
     </radialGradient>
   </defs>
 
-  <!-- Country outline — Côte d'Ivoire (clockwise from NW) -->
-  <path d="
-    M 22,28
-    L 65,18
-    L 95,23
-    L 120,16
-    L 155,24
-    L 185,35
-    L 208,48
-    L 212,95
-    L 210,148
-    L 208,185
-    L 198,205
-    L 178,215
-    L 155,220
-    L 128,219
-    L 100,215
-    L 75,208
-    L 52,200
-    L 36,192
-    L 22,172
-    L 18,135
-    L 20,92
-    L 24,55
-    Z"
-    fill="url(#fill-grad)"
-    stroke="#0B666A"
-    stroke-width="2"
-    stroke-linejoin="round"
-  />
+  <!-- Drop shadow layer -->
+  <path filter="url(#shadow)" d="
+    M 22,28 L 65,18 L 95,23 L 120,16 L 155,24 L 185,35
+    L 208,48 L 212,95 L 210,148 L 208,185 L 198,205
+    L 178,215 L 155,220 L 128,219 L 100,215 L 75,208
+    L 52,200 L 36,192 L 22,172 L 18,135 L 20,92 L 24,55 Z"
+    fill="#0B666A" opacity="0.18"/>
 
-  <!-- Subtle interior shading -->
+  <!-- Country fill -->
   <path d="
-    M 22,28 L 65,18 L 95,23 L 120,16 L 155,24 L 185,35 L 208,48
-    L 212,95 L 210,148 L 208,185 L 198,205 L 178,215 L 155,220
-    L 128,219 L 100,215 L 75,208 L 52,200 L 36,192 L 22,172
-    L 18,135 L 20,92 L 24,55 Z"
+    M 22,28 L 65,18 L 95,23 L 120,16 L 155,24 L 185,35
+    L 208,48 L 212,95 L 210,148 L 208,185 L 198,205
+    L 178,215 L 155,220 L 128,219 L 100,215 L 75,208
+    L 52,200 L 36,192 L 22,172 L 18,135 L 20,92 L 24,55 Z"
+    fill="url(#fill-grad)"/>
+
+  <!-- Border outline -->
+  <path d="
+    M 22,28 L 65,18 L 95,23 L 120,16 L 155,24 L 185,35
+    L 208,48 L 212,95 L 210,148 L 208,185 L 198,205
+    L 178,215 L 155,220 L 128,219 L 100,215 L 75,208
+    L 52,200 L 36,192 L 22,172 L 18,135 L 20,92 L 24,55 Z"
     fill="none"
-    stroke="rgba(11,102,106,0.15)"
-    stroke-width="8"
-    stroke-linejoin="round"
-  />
+    stroke="#0B666A"
+    stroke-width="3"
+    stroke-linejoin="round"/>
 
-  <!-- Abidjan marker (SE coast) -->
-  <circle cx="168" cy="210" r="7" fill="#f8c400" filter="url(#glow)" opacity="0.95"/>
-  <circle cx="168" cy="210" r="3.5" fill="#071952"/>
-  <!-- Pulse ring around Abidjan -->
-  <circle cx="168" cy="210" r="12" fill="none" stroke="#f8c400" stroke-width="1.2" opacity="0.45"/>
-  <circle cx="168" cy="210" r="18" fill="none" stroke="#f8c400" stroke-width="0.8" opacity="0.22"/>
+  <!-- Inner glow border -->
+  <path d="
+    M 22,28 L 65,18 L 95,23 L 120,16 L 155,24 L 185,35
+    L 208,48 L 212,95 L 210,148 L 208,185 L 198,205
+    L 178,215 L 155,220 L 128,219 L 100,215 L 75,208
+    L 52,200 L 36,192 L 22,172 L 18,135 L 20,92 L 24,55 Z"
+    fill="none"
+    stroke="rgba(11,102,106,0.22)"
+    stroke-width="10"
+    stroke-linejoin="round"/>
+
+  <!-- Abidjan marker -->
+  <circle cx="168" cy="210" r="9"  fill="#f8c400" filter="url(#glow)" opacity="0.9"/>
+  <circle cx="168" cy="210" r="4"  fill="#071952"/>
+  <!-- Pulse rings -->
+  <circle cx="168" cy="210" r="15" fill="none" stroke="#f8c400" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="168" cy="210" r="22" fill="none" stroke="#f8c400" stroke-width="1"   opacity="0.25"/>
 
   <!-- Abidjan label -->
-  <text x="180" y="214" font-family="'Segoe UI',Arial,sans-serif" font-size="10" font-weight="700" fill="#071952">Abidjan</text>
+  <text x="183" y="215" font-family="'Segoe UI',Arial,sans-serif" font-size="11" font-weight="700" fill="#071952">Abidjan</text>
 
   <!-- Gulf of Guinea label -->
-  <text x="72" y="240" font-family="'Segoe UI',Arial,sans-serif" font-size="8.5" fill="#0B666A" opacity="0.7" font-style="italic">Gulf of Guinea</text>
+  <text x="62" y="244" font-family="'Segoe UI',Arial,sans-serif" font-size="9" fill="#0B666A" opacity="0.8" font-style="italic">Gulf of Guinea</text>
 
-  <!-- Compass direction N -->
-  <text x="118" y="12" font-family="'Segoe UI',Arial,sans-serif" font-size="9" fill="#0B666A" opacity="0.55" font-weight="700">N</text>
-  <line x1="122" y1="14" x2="122" y2="22" stroke="#0B666A" stroke-width="1" opacity="0.4"/>
+  <!-- North indicator -->
+  <text x="116" y="11" font-family="'Segoe UI',Arial,sans-serif" font-size="10" fill="#0B666A" font-weight="700" opacity="0.65">N</text>
+  <line x1="121" y1="13" x2="121" y2="22" stroke="#0B666A" stroke-width="1.5" opacity="0.5"/>
 </svg>
