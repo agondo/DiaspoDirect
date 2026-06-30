@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+
+  <!-- Rounded square background -->
+  <rect x="2" y="2" width="76" height="76" rx="16" fill="#1B3A6B"/>
+
+  <!-- Globe wireframe, centered at (40,40) r=24 -->
+  <circle cx="40" cy="40" r="24" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.4"/>
+  <line x1="16" y1="40" x2="64" y2="40" stroke="rgba(255,255,255,0.16)" stroke-width="1.1"/>
+  <path d="M40 16 Q27 40 40 64" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.1"/>
+  <path d="M40 16 Q53 40 40 64" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.1"/>
+  <path d="M20 29 Q40 23 60 29" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="0.9"/>
+  <path d="M20 51 Q40 57 60 51" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="0.9"/>
+
+  <!-- Pharmacy cross (gold), centered at (40,40) -->
+  <rect x="37" y="30" width="7" height="20" rx="2" fill="#F8C400"/>
+  <rect x="30" y="37" width="20" height="7" rx="2" fill="#F8C400"/>
+
+  <!-- Send arrow, top-right -->
+  <g stroke="#F8C400" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8">
+    <line x1="57" y1="20" x2="66" y2="20"/>
+    <polyline points="63,17 66,20 63,23"/>
+  </g>
+
+</svg>
