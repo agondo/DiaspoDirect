@@ -94,9 +94,20 @@
 .hero-section::before {
     content: '';
     position: absolute;
+    inset: 0;
+    background-image: url('/images/hero-bg.svg');
+    background-size: cover;
+    background-position: center right;
+    pointer-events: none;
+    opacity: 1;
+}
+
+.hero-section::after {
+    content: '';
+    position: absolute;
     top: -140px; right: -140px;
     width: 440px; height: 440px;
-    background: rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.03);
     border-radius: 50%;
     pointer-events: none;
 }
@@ -239,6 +250,118 @@
     background: #10b981;
     border-radius: 50%;
     box-shadow: 0 0 0 3px rgba(16,185,129,0.3);
+}
+
+/* ── Stats strip ──────────────────────────────────────────────────────── */
+.stats-strip {
+    background: white;
+    border-bottom: 1px solid #eef0f6;
+    padding: 32px 60px;
+}
+
+.stats-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    max-width: 900px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    flex: 1;
+    min-width: 160px;
+    text-align: center;
+    padding: 0 24px;
+}
+
+.stat-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 15px;
+    font-weight: 700;
+    color: #071952;
+    margin-bottom: 4px;
+}
+
+.stat-desc {
+    font-size: 12px;
+    color: #888;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 48px;
+    background: #eef0f6;
+    flex-shrink: 0;
+}
+
+/* ── Pharmacy Network ─────────────────────────────────────────────────── */
+.network-section {
+    padding: 80px 60px;
+    background: white;
+}
+
+.network-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.network-card {
+    background: #f8faff;
+    border: 1px solid #eef0f6;
+    border-radius: 14px;
+    padding: 28px 22px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.network-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.07);
+}
+
+.network-card h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #071952;
+    margin-bottom: 8px;
+}
+
+.network-card p {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* CI map in network section */
+.network-map-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 48px;
+}
+
+.network-map-img {
+    width: 200px;
+    height: auto;
+    filter: drop-shadow(0 4px 16px rgba(11,102,106,0.18));
+}
+
+/* SVG icons in network cards */
+.network-svg-icon {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 14px;
+    display: block;
+    color: #0B666A;
 }
 
 /* ── Who We Are ──────────────────────────────────────────────────────── */
@@ -720,6 +843,10 @@
     .why-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .network-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 900px) {
@@ -756,10 +883,27 @@
 
     .how-section,
     .services-section,
+    .network-section,
     .contact-section,
     .why-section,
     .cta-section {
         padding: 56px 28px;
+    }
+
+    .stats-strip {
+        padding: 24px 28px;
+    }
+
+    .stat-divider {
+        display: none;
+    }
+
+    .stats-inner {
+        gap: 20px;
+    }
+
+    .network-grid {
+        grid-template-columns: 1fr 1fr;
     }
 
     .contact-grid {
