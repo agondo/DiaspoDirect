@@ -115,6 +115,22 @@ public class StripeCheckoutService(ApplicationDbContext db, NotificationService 
                     payerUser.Email ?? "",
                     payerName);
 
+                // Auto-create ProviderPayment from the pharmacy the sender already chose
+                if (prescription.ProviderId.HasValue)
+                {
+                    var alreadyExists = await db.ProviderPayments.AnyAsync(pp => pp.PaymentId == payment.Id);
+                    if (!alreadyExists)
+                    {
+                        db.ProviderPayments.Add(new ProviderPayment
+                        {
+                            ProviderId = prescription.ProviderId.Value,
+                            PaymentId  = payment.Id,
+                            AmountXOF  = prescription.AmountCFA,
+                            Status     = ProviderPaymentStatus.Pending
+                        });
+                        await db.SaveChangesAsync();
+                    }
+                }
             }
         }
     }
