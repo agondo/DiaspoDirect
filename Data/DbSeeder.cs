@@ -15,7 +15,7 @@ public static class DbSeeder
                 await roleManager.CreateAsync(new IdentityRole(role));
         }
 
-        const string adminEmail = "ceo@flaubertgroup.com";
+        const string adminEmail = "ceo@flaubertgroup.net";
         const string adminPassword = "Aglagtin111@@@";
 
         var admin = await userManager.FindByEmailAsync(adminEmail);
