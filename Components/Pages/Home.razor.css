@@ -354,19 +354,6 @@
     margin: 0;
 }
 
-/* CI map in network section */
-.network-map-wrap {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 48px;
-}
-
-.network-map-img {
-    width: 280px;
-    height: auto;
-    filter: drop-shadow(0 6px 20px rgba(11,102,106,0.28));
-}
-
 /* SVG icons in network cards */
 .network-svg-icon {
     width: 40px;
