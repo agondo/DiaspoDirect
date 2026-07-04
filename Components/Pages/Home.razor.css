@@ -142,16 +142,16 @@
     background: rgba(248,196,0,0.18);
     color: #f8c400;
     border: 1px solid rgba(248,196,0,0.35);
-    padding: 5px 13px;
+    padding: 6px 14px;
     border-radius: 50px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.4px;
     margin-bottom: 20px;
 }
 
 .hero-content h1 {
-    font-size: 50px;
+    font-size: 48px;
     font-weight: 800;
     line-height: 1.08;
     max-width: 560px;
@@ -169,7 +169,7 @@
 .hero-actions {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
     flex-wrap: wrap;
     margin-bottom: 28px;
 }
@@ -179,6 +179,13 @@
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 28px;
+}
+
+.hero-trust-note {
+    margin-top: 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.2px;
 }
 
 .service-chip {
@@ -199,6 +206,7 @@
     position: relative;
     z-index: 2;
     flex-shrink: 0;
+    margin-top: 26px;
 }
 
 .story-card {
@@ -897,6 +905,7 @@
         margin-left: 0;
         padding: 24px 28px 0;
         max-width: 100%;
+        min-width: 0;
         box-sizing: border-box;
     }
     .hero-content h1 {
