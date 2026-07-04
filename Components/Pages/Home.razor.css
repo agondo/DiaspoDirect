@@ -110,7 +110,7 @@
     z-index: 0;
     background-image: url('/images/landing_bg01.png');
     background-size: cover;
-    background-position: 52% 30%;
+    background-position: 40% 30%;
     pointer-events: none;
     opacity: 1;
 }
@@ -121,10 +121,11 @@
     inset: 0;
     z-index: 1;
     background: linear-gradient(to right,
-        rgba(5, 20, 55, .88) 0%,
-        rgba(5, 20, 55, .72) 35%,
-        rgba(5, 20, 55, .35) 65%,
-        rgba(5, 20, 55, .15) 100%);
+        rgba(5, 20, 55, .95) 0%,
+        rgba(5, 20, 55, .90) 25%,
+        rgba(5, 20, 55, .78) 38%,
+        rgba(5, 20, 55, .30) 62%,
+        rgba(5, 20, 55, .12) 100%);
     pointer-events: none;
 }
 
@@ -132,8 +133,8 @@
     max-width: 610px;
     position: relative;
     z-index: 2;
-    padding-top: 155px;
-    margin-left: 95px;
+    padding-top: 175px;
+    margin-left: 125px;
 }
 
 .hero-badge {
@@ -887,14 +888,29 @@
 
     .hero-section {
         flex-direction: column;
-        padding: 48px 28px;
+        align-items: stretch;
+        padding: 48px 0;
         min-height: auto;
     }
 
-    .hero-content h1 { font-size: 32px; }
+    .hero-content {
+        margin-left: 0;
+        padding: 24px 28px 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .hero-content h1 {
+        font-size: 32px;
+        max-width: 100%;
+        margin-bottom: 18px;
+    }
     .hero-content > p { font-size: 16px; }
-    .hero-visual { width: 100%; }
-    .story-card { min-width: unset; }
+    .hero-visual {
+        width: 100%;
+        padding: 0 28px;
+        box-sizing: border-box;
+    }
+    .story-card { min-width: unset; max-width: unset; }
 
     .how-section,
     .services-section,
@@ -950,5 +966,5 @@
 
 @media (max-width: 480px) {
     .why-grid { grid-template-columns: 1fr; }
-    .trust-indicators { gap: 8px 14px; }
+    .service-chips { gap: 8px; }
 }
