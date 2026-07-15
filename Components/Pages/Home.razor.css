@@ -217,6 +217,11 @@
     transition: box-shadow 0.2s, border-color 0.2s;
 }
 
+.trust-badge-break {
+    flex-basis: 100%;
+    height: 0;
+}
+
 .trust-badge:hover {
     box-shadow: 0 0 12px rgba(248,196,0,0.35);
     border-color: rgba(248,196,0,0.5);
