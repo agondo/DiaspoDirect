@@ -115,6 +115,7 @@
     position: relative;
     overflow: hidden;
     min-height: 600px;
+    margin-top: -82px;
 }
 
 .hero-section::before {
@@ -304,6 +305,7 @@
     flex-shrink: 0;
     margin-top: 155px;
     margin-right: -55px;
+    transform: translate(-120px, -270px);
 }
 
 .story-card {

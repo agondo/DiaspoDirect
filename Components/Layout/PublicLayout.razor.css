@@ -6,15 +6,26 @@
 
 .public-main {
     flex: 1;
+    padding-top: 82px;
 }
 
 /* ── Top nav ──────────────────────────────────────────────────────────── */
 .public-nav {
-    position: sticky;
+    position: absolute;
     top: 0;
-    z-index: 100;
-    background: linear-gradient(180deg, #102a68 0%, #0d2357 100%);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: linear-gradient(
+        to bottom,
+        rgba(32, 63, 132, .95) 0%,
+        rgba(39, 67, 126, .88) 70%,
+        rgba(39, 67, 126, .45) 100%
+    );
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 30px rgba(0,0,0,.12);
+    border: none;
 }
 
 .public-nav-inner {
@@ -29,7 +40,7 @@
 }
 
 .nav-brand {
-    color: #f8c400;
+    color: #ffc800;
     font-size: 34px;
     font-weight: 800;
     text-decoration: none;
@@ -44,7 +55,7 @@
 }
 
 .nav-links a {
-    color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.94);
     text-decoration: none;
     font-size: 15px;
     font-weight: 500;
@@ -52,22 +63,25 @@
 }
 
 .nav-links a:hover {
-    color: white;
+    color: #ffc800;
 }
 
 .nav-login {
-    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.45);
+    background: rgba(255,255,255,0.04);
     padding: 7px 18px;
     border-radius: 6px;
 }
 
 .nav-login:hover {
     border-color: rgba(255,255,255,0.7) !important;
+    color: white;
 }
 
 .nav-register {
-    background: #f8c400;
-    color: #071952 !important;
+    background: #ffc800;
+    color: #10295f !important;
     padding: 8px 20px;
     border-radius: 6px;
     font-weight: 700 !important;
@@ -75,7 +89,7 @@
 
 .nav-register:hover {
     background: #ffd633;
-    color: #071952 !important;
+    color: #10295f !important;
 }
 
 /* Burger (mobile) */
